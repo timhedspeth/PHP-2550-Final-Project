@@ -8,4 +8,8 @@ from then on.
 
 If you have any questions please reach out:
 
+anthony_girard@brown.edu 
+
 timothy_hedspeth@brown.edu
+
+yutong_li1@brown.edu 
