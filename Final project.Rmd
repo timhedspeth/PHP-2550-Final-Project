@@ -1,0 +1,55 @@
+---
+title: "Food Borne Pathogens"
+author: "Anthony Girard, Timothy Hedspeth, Yutong Li"
+date: '2022-10-05'
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+
+# Introduction
+## Motivating question 
+
+
+## Literature review 
+
+
+# Data Overview 
+
+## What data are we using 
+In this toy example I have downloaded data from a random strain of salmonella as to to explore what we can do with this data. 
+
+```{r}
+
+library(lubridate)
+
+# Read in the data 
+setwd("~/Desktop/Semester_3/Practical/Final")
+isolated <- read.csv("isolates_test.csv")
+
+apply(isolated, 2, typeof)
+
+head(isolated)
+
+table(isolated$Location)
+nrow(isolated)
+
+#isolated_us <- 
+```
+
+All the data reads in as character. There are 17,328 in this data set allone hailing from many countries around the world 
+
+
+## Missing Data 
+
+
+## Exploratory Analysis 
+
+
+
+# Conclusion 
+
+
