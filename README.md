@@ -1,7 +1,9 @@
 # PHP 2550 Final Project
 ## Food Borne Pathogens 
 
-Hello and welcome to our project about predicition of foodborne illess in the United States. We are a group of graduate students in the department of Biostatistics at Brown University School of Public Health. For our course in Pratical Data Analysis we have worked on  preditcting food outbreaks. This repository contains all the code and figures that were derived from this analysis. This repository will be frequently updated until 12/15/22, and likely will remain untouched from then on. 
+Hello and welcome to our project page! We are a group of graduate students in the department of Biostatistics at Brown University School of Public Health. We are working on a project regarding the outbreak of foodborne illnesses in the United States. In short we will attempt to apply machine learning and time series analyses to build robust models and framework that can be used as predictive tools for public officials that may not be well versed in statisical analysis. 
+
+This work is currently ongoing, as this course runs for the fall 2022 semester. Thus we will be continually updating this repository, we currently have space for our initial analysis, that will serve as a building block for the rest of this project. We have last updated this repository (10/15/22)
 
 If you have any questions please reach out:
 
