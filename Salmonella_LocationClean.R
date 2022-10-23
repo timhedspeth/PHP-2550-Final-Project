@@ -1,3 +1,6 @@
+library(data.table)
+
+#load the data
 sal_dat <- read.csv("salmonella_2013to2022.csv")
 
 dim(sal_dat) # 194239     21
