@@ -1,10 +1,14 @@
 library(data.table)
+
+#load the data
 ecoli_dat <- read.csv("E.coli_2013to2022.csv")
 dim(ecoli_dat) #111203     21
+
+#extract only US cases
 ecoli_us <- ecoli_dat[ecoli_dat$Location %like% "US", ]
 dim(ecoli_us) # 34805    21
 
-
+#clean for location
 ecoli_us$Location[ecoli_us$Location %like% "USA:NC"== TRUE] <- "NC"
 ecoli_us$Location[ecoli_us$Location %like% "USA: NC"== TRUE] <- "NC"
 ecoli_us$Location[ecoli_us$Location %like% "North Carolina"== TRUE] <- "NC"
