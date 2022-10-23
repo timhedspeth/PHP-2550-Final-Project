@@ -1,0 +1,609 @@
+---
+title: "Food Borne Pathogens"
+author: "Anthony Girard, Timothy Hedspeth, Yutong Li"
+date: '2022-10-05'
+output: pdf_document
+urlcolor: blue
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+
+# Introduction
+## Motivating question 
+
+## Literature review 
+
+
+
+
+# Data Tools 
+```{r, message=FALSE}
+
+#~~~~~~~~~~~~#
+## Packages ## 
+#~~~~~~~~~~~~#
+
+library(lubridate) # working with dates 
+library(tidyverse) # working with data 
+library(kableExtra) # Make nicer plots 
+library(ggpubr) # Arrange GGplots 
+
+#~~~~~~~~#
+## Data ## 
+#~~~~~~~~#
+
+setwd("~/Desktop/Semester_3/Practical/Final")
+salmonella <- read.csv("final_salmonella_date.csv")
+ecoli <- read.csv("final_ecoli_date.csv")
+campylobacter <- read.csv("final_Campylobacter_date.csv")
+
+# Suppress summaries info when knitting to a pdf 
+options(dplyr.summarise.inform = FALSE)
+library(dplyr, warn.conflicts = FALSE)
+options(tidyverse.quiet = TRUE)
+
+```
+
+In this analysis we consider longitudinal data from 2013-2022 regarding 3 food borne illnesses, Salmonella, E.Coli, and Camplyobacter. We have 3 different data sets which contain 25 variables for each of the illnesses individually, we note that the Salmonella data set is the largest with 93,763 observations, Camplyobacter is the second largest with 44,949 observations and E. Coli with 34,805 observations. In order to increase the efficiency of the exploratory analysis we load these data sets separately so computation can be done on individual data sets. 
+
+The data was extracted from ncbi and in our extraction process we conditioned on the *Collection.date* variable in the data collection process to extract information that was collected from 2013 to 2022. The objective of this analysis, at least at baseline is to focus on food borne illness in the United States. Aside from conditioning on *Collection.date* the only other condition we imposed was on the illness type, the three of which are discussed above.
+
+In initial analysis we noted some preprocessing was required. As noted in the objectives in the **Introduction** we are interested in examining data regarding the United States the first R scripts (*illnessname*_LocationClean.R) are used to subset the three illnesses to only include only locations that are in the United States using the **$\%$like$\%$** command, as the extracted data contained information from many countries, and these subsetted data sets are extracted. After running this script we noted an extreme level of heterogeneity($>$ 6,000 levels in the Salmonella data) in the *Isolation.Source* variable, which required preprocessing prior to conducting an exploratory analysis. The second R script (source_group.R) uses the **tolower()** command to make the levels all lowercase and therefore easier to work with. With the data in a more manageable format we used the **$\%$like$\%$** command to find specified levels and place them into more general groups for our analysis, e.g. grouping levels that contain apple into a produce category.  After the data is extracted from the secnd R script, we noted that the *Collection.date* variable, the primary time metric of interest, had different reporting practices, which we correct for in our third R script (Clean_dates.R). This script uses the **tidyvserse**, **anytime** and **lubridate** packages to create data sets with the different different date formats (full date, year and month, just year) and decomposes this *Collection.date* into 3 new variables *year*, *month*, and *day*, so that it is easier to work with this date information. These cleaned data sets and R scripts the ones used for this analysis, and are publicly available on [our Github page](https://github.com/timhedspeth/PHP-2550-Final-Project/tree/main/Initial%20work). As we further refine our methods for analysis we will update this section with other relevant packages and their purpose. 
+
+
+
+# Exploratory Data Analysis 
+
+## Missing Data 
+The [NCBI](https://www.ncbi.nlm.nih.gov/pathogens/submit-data/) collects data from surveillance and research efforts that are currently ongoing that look at a multitude of sources such as food, patients, production, etc. After data is submitted it is clustered to related pathogens, allowing for people to look for closely related pathogens. Given that the data is  being uploaded from multiple sources with what we presume to be free text fields in some columns eg. Isolation source there is a lot of heterogeneity in  reporting and in data quality. Data quality aside we are interested in the missingness, which we explore in table and figure 1 below. 
+
+```{r,message=FALSE, warning=FALSE}
+
+#~~~~~~~~~~~~~~~~#
+## Missing Data ## 
+#~~~~~~~~~~~~~~~~#
+
+# The first objective of this EDA is to explore the missing patterns in our 
+# data at the surface level 
+
+
+# Replace Missing strings with NA 
+salmonella[salmonella == ""] <- NA 
+ecoli[ecoli == ""] <- NA
+campylobacter[campylobacter == ""] <- NA 
+
+
+## Missingness by column
+
+# Salmonella
+na_by_cols_sal <- as.data.frame(apply(salmonella,2, is.na))
+sum_na_by_col_sal <- apply(na_by_cols_sal,2,sum)/nrow(na_by_cols_sal)
+sum_na_by_col_sal <- as.data.frame(round(sum_na_by_col_sal,2))
+
+# E. Coli 
+na_by_cols_ecoli <- as.data.frame(apply(ecoli,2, is.na))
+sum_na_by_col_ecoli <- apply(na_by_cols_ecoli,2,sum)/nrow(na_by_cols_ecoli)
+sum_na_by_col_ecoli <- as.data.frame(round(sum_na_by_col_ecoli,2))
+
+# Camplyobaceter 
+na_by_cols_camp <- as.data.frame(apply(campylobacter,2, is.na))
+sum_na_by_col_camp <- apply(na_by_cols_camp,2,sum)/nrow(na_by_cols_camp)
+sum_na_by_col_camp <- as.data.frame(round(sum_na_by_col_camp,2))
+
+# Get the data together 
+Missing_by_col <- cbind(sum_na_by_col_sal, sum_na_by_col_ecoli, sum_na_by_col_camp)
+names(Missing_by_col) <- c("x", "y", "z") # Create a dummy variable for filtering 
+Missing_by_col <- Missing_by_col %>% filter(x != 0 & 
+                                            y != 0 & 
+                                            z != 0   )
+names(Missing_by_col) <- c("Salmonella", "E. Coli", "Campylobacter")
+
+# Print the data frame 
+Missing_by_col  %>% 
+  kbl(caption = "Percent missing for each illness dataset", booktabs=T,    escape=F, align = "c") %>%
+  kable_styling(full_width = FALSE, latex_options = c('hold_position'))
+
+
+
+## Missingness by row
+
+# Using the commented out code below we check to see if any of the data is 
+# complete for a given observation 
+
+#sum(complete.cases(salmonella))
+#sum(complete.cases(ecoli))
+#sum(complete.cases(campylobacter))
+
+# There are no complete cases in the data set 
+
+# Salmonella 
+na_by_row_sal <- as.data.frame(apply(salmonella,1, is.na))
+sum_na_by_row_sal <- apply(na_by_row_sal,2,sum)/nrow(na_by_row_sal)
+salmonella_missing <- as.data.frame(sum_na_by_row_sal)
+
+# E. Coli 
+na_by_row_ecoli <- as.data.frame(apply(ecoli,1, is.na))
+sum_na_by_row_ecoli <- apply(na_by_row_ecoli,2,sum)/nrow(na_by_row_ecoli)
+ecoli_missing <- as.data.frame(sum_na_by_row_ecoli)
+
+# Campylobacter
+na_by_row_camp <- as.data.frame(apply(campylobacter,1, is.na))
+sum_na_by_row_camp <- apply(na_by_row_camp,2,sum)/nrow(na_by_row_camp)
+campylobacter_missing <- as.data.frame(sum_na_by_row_camp)
+
+# Make a plot of missingness by 
+ggplot(data = salmonella_missing, aes(x = sum_na_by_row_sal, color = "sum_na_by_row_sal")) + 
+  geom_density(alpha = .9) + 
+  geom_density(data = ecoli_missing, aes(x = sum_na_by_row_ecoli,
+                                         color = "sum_na_by_row_ecoli"), alpha = .9) + 
+  geom_density(data = campylobacter_missing, aes(x = sum_na_by_row_camp, 
+                                                 color = "sum_na_by_row_camp"), alpha = .9)
+  
+
+```
+
+We note from table 1 that there are some variables that are missing in great quantities, such as *Serovar*, *Host_disease*, *Lat.Lon*, *Source_type*, *Computed.types*, and *outbreak* given the extreme missingness for the variables in most of our illness types we decide to remove them from our analysis. On the contrary we have no missingness in the *organism group*, *Isolate*, *Create.date*, *Collection.date*, *Location*, *Biosample*, and the variables we created in the preprocessing *Isolation.source.category* and *year*. Though we observe that there are extremes there are variables with differing levels of missingness, which is likely due to the fact that this data is reported by the researcher.  The *Strain.name*,*Isolation.Source*, and *Isolation.type* is missing in very small quantity which could be due to an oversight by the researcher when submitting their data. It appears that $\textit{SNP.cluster}$ is missing for almost half of the E.coli data, and has some missingness in the other illnesses, but not nearly to this extent. This could be due to issues pr delays in processing the pathogens related to E. Coli. It is also apparent that the month and year variable that we created for this analysis have a lot of missingness, which can be explained by the issues in $\textit{Collection.date}$ that we observed. Generally a lot of variables are dependent upon reporting practices of the people submitting to the pathogen detection database, which can explain why some of these variables have a lot of missing data.  
+
+```{r,message=FALSE, warning=FALSE}
+## Delete variables with most of the values missing 
+
+salmonella <- salmonella[,-which(names(salmonella) %in% c("Serovar", "Host.Disease", "Lat.Lon", "Source.type", "Outbreak"))]
+ecoli <- ecoli[,-which(names(ecoli) %in% c("Serovar", "Host.Disease", "Lat.Lon", "Source.type", "Outbreak"))]
+campylobacter <- campylobacter[,-which(names(campylobacter) %in% c("Serovar", "Host.Disease", "Lat.Lon", "Source.type", "Outbreak"))]
+
+```
+
+
+
+
+
+
+
+## Variables of interest 
+Prior to proceeding to further analysis we will further discuss the variables aviable and if they will remain in our analysis. Recall that the goal of this project is to predict outbreaks of these food borne illness and explore their  seasonality. This means that our main interest lays in the *Collection.Date* and *Location* as we want to observe if there are temporal or spatial trends regarding the illnesses. On top of this we consider that information regarding *strain*, *Isolation.Source* and *Isolation.type* allow for us to look for potential causes of the outbreak. Also looking for similarities between strains we can look at the *SNP.Cluster* or the *Min.Same* and *Min.Diff* variables, and since there is approximately half of the data missing in the *SNP.Cluster* we will assess relative closeness with the *Min.Same* and *Min.diff* variables. Given that we do not specifically look at antibiotic resistance we do not look at *AMR.Genotypes* and we do not stand to gain a lot from looking at *X.Organism.group* or *Assembly* so we do not consider these. We will use the variables of interest to see if we can extract any noticeable patterns in the illnesses. 
+
+
+
+```{r,message=FALSE, warning=FALSE}
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~#
+## Baseline understanding ## 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+# We note that some of the variables may not be that informative to our analysis 
+# so we explore to see if the columns tell us anything. This will allow for us 
+# to determine which variables to include in this analysis 
+
+
+## X.Organism.group
+
+sal_group <- levels(as.factor(salmonella$X.Organism.group))
+ecoli_grop <- levels(as.factor(ecoli$X.Organism.group))
+camp_group <-  levels(as.factor(campylobacter$X.Organism.group))
+
+## Strain 
+sal_strain <- length(levels(as.factor(salmonella$Strain)))
+ecoli_strain <- length(levels(as.factor(ecoli$Strain)))
+camp_strain <- length(levels(as.factor(campylobacter$Strain)))
+
+## Isolate identifiers 
+
+# This is more complex than others 
+
+
+## 
+
+#length(levels(as.factor(salmonella$Serovar)))
+
+
+#levels(as.factor(salmonella$Outbreak))
+
+
+
+
+```
+
+
+
+
+
+
+
+## Trends over Time and Location 
+
+Given that we are interested in outbreaks we find it most pertinent to first understand where and when cases are poping up. This will, hopefully, afford us the opportunity to see historical trends in the data and if cases are more concentrated in some regions of the United States, which will help inform our decisions regarding modeling in future work. 
+
+
+```{r,message=FALSE, warning=FALSE}
+
+# Let us consider data by year
+
+
+
+# How many Samonella cases per year? 
+Num_per_year_salmonella <- salmonella %>% 
+                           group_by(year) %>% 
+                           summarize(num = n())
+
+# How many ecoli cases per year? 
+Num_per_year_ecoli <- ecoli %>% 
+                      group_by(year) %>% 
+                      summarize(num = n())
+
+# How many ecoli cases per year? 
+Num_per_year_campylobacter <- campylobacter %>% 
+                              group_by(year) %>% 
+                              summarize(num = n())
+
+# Lets look at the trend over time, and 
+ggplot(data = Num_per_year_salmonella, aes(x = year, y = num, color = "Salmonella")) +
+  geom_point() + 
+  geom_line() +
+  # E coli 
+  geom_point(data = Num_per_year_ecoli, aes(x = year, y = num, color = "E coli")) + 
+  geom_line(data = Num_per_year_ecoli, aes(x = year, y = num, color = "E coli")) + 
+  # campylobacter
+  geom_point(data = Num_per_year_campylobacter, aes(x = year, y = num, color = "Campylobacter")) + 
+  geom_line(data = Num_per_year_campylobacter, aes(x = year, y = num, color = "Campylobacter")) + 
+  theme_minimal() + 
+  labs(title= "Number of Food-Borne Illness cases by year", 
+       x = "Year", 
+       y = "Number of cases")  + 
+  scale_color_discrete(name = "Illness")
+
+```
+
+From Figure 2 we note that there are more cases of Salmonella than any other food borne illnesses in any given year. The number of cases of campylobacter is the smallest at onset, but the number of cases of camylobacter passes E.Coli in 2016 and remains larger than the number of E. Coli cases for remaining years. We observe that for all of the illnesses that the number of cases decrease in 2020, which we note is the year the Covid-19 pandemic started, though we cannot confirm a causal relationship with the provided data we can assume that this is due to less reporting or less going out to eat and getting exposure to food that could make people ill, though this is  conjecture and we cannot further comment on this. 
+
+
+
+```{r,message=FALSE, warning=FALSE}
+# Number of cases per month for salmonella 
+Num_per_month_sal <- salmonella %>%  
+                     group_by(year, month) %>% 
+                     summarize(num =  n())
+Num_per_month_sal <- Num_per_month_sal %>% filter(!is.na(month))
+
+plot_by_month_sal <- ggplot(data = Num_per_month_sal, aes(x = as.numeric(month), y = num)) + 
+                      geom_point(aes(color = as.factor(year))) + 
+                      scale_x_continuous(breaks=seq(1,12,1), labels=c("Jan", "Feb", 
+                                                                      "Mar", "Apr", "May", 
+                                                                      "Jun", "Jul", "Aug", 
+                                                                      "Sep", "Oct", 
+                                                                      "Nov", "Dec"))+
+                      geom_smooth() + 
+                      labs(title= "Salmonella", 
+                           x = "", 
+                           y = "Number of cases")  + 
+                      scale_color_discrete(name = "Year") 
+                      
+  
+
+# E. Coli
+Num_per_month_ecoli <- ecoli %>%  
+                     group_by(year, month) %>% 
+                     summarize(num =  n())
+Num_per_month_ecoli <- Num_per_month_ecoli %>% filter(!is.na(month))
+
+plot_by_month_eco <- ggplot(data = Num_per_month_sal, aes(x = as.numeric(month), y = num)) + 
+                      geom_point(aes(color = as.factor(year))) + 
+                      scale_x_continuous(breaks=seq(1,12,1), labels=c("Ja", "Fe", 
+                                                                      "Ma", "Ap", "Ma", 
+                                                                      "Ju", "Ju", "Au", 
+                                                                      "Se", "Oc", 
+                                                                      "No", "De"))+
+                      geom_smooth() + 
+                      labs(title= "E. Coli", 
+                           x = "", 
+                           y = "Number of cases")  + 
+                      scale_color_discrete(name = "Year") +
+                      ylim(0,750)
+  
+
+
+# Camplyobacter
+Num_per_month_camp <- campylobacter %>%  
+                     group_by(year, month) %>% 
+                     summarize(num =  n())
+Num_per_month_camp <- Num_per_month_camp %>% filter(!is.na(month))
+
+plot_by_month_cal <- ggplot(data = Num_per_month_camp, aes(x = as.numeric(month), y = num)) + 
+                      geom_point(aes(color = as.factor(year))) + 
+                      scale_x_continuous(breaks=seq(1,12,1), labels=c("Jan", "Feb", 
+                                                  "Mar", "Apr", "May", 
+                                                  "Jun", "Jul", "Aug", 
+                                                 "Sep", "Oct", 
+                                                 "Nov", "Dec"))+
+                      geom_smooth() + 
+                      labs(title= "Camplyobacter", 
+                           x = "", 
+                           y = "Number of cases")  + 
+                      scale_color_discrete(name = "Year")
+  
+
+# Arrange the plots 
+figure2 <- ggarrange(plot_by_month_sal, plot_by_month_eco, nrow =2 )
+annotate_figure(figure2, 
+                 bottom = text_grob("Figure X: Number of cases per month", color = "black",   hjust = 1, x = 1, face = "italic", size = 10),)
+annotate_figure(plot_by_month_cal, 
+                 bottom = text_grob("Figure X: Number of cases per month", color = "black",   hjust = 1, x = 1, face = "italic", size = 10),)
+
+
+
+```
+
+
+We further expand upon our analysis of number of cases over by looking at the number of cases per month for each given illness. For the illnesses, there are no month level data that is observed for any of the illnesses, and there is no month level data for the year 2020 for the Salmonella and E. Coli data. Looking at figure X, it can be observed from the smoothed regression line fit to the data that there are some potential trends in the seasonality, noteably the number of slamonella cases looks to increase in early summer  before hitting a peak around august and september before falling in the fall months. E. Coli on the other hand deems to start increasing in the winter months and peak around May/June before generally starting to decrease. Out of all the illnesses Campylobacter shows the most distinict trend in seasonality, with the number of cases increasing from the winter and spring to a peak in the summer around July and starting to decrease in the later summer/fall into the winter. We note that as mentioned in the EDA there is a high level of missingness in the month of the collection date, which limits our analysis, though we do see 
+
+```{r,message=FALSE, warning=FALSE}
+
+# We can also look to trends over regions in the US 
+
+
+## Define the regions 
+salmonella <- salmonella %>% mutate(region = case_when(Location %in% c("ME", "VT", "NH", 
+                                                                       "MA", "CT", "RI", 
+                                                                       "NY", "NJ", "PA", 
+                                                                       "Northeast") ~ "Northeast", 
+                                                       Location %in% c("DE", "MD", "DC", 
+                                                                       "WV", "VA", "NC", 
+                                                                       "SC", "GA", "FL", 
+                                                                       "AL", "MS", "LA", 
+                                                                       "TX", "OK", "AR", 
+                                                                       "TN", "KY", 
+                                                                       "South") ~ "South", 
+                                                       Location %in% c("OH", "MI", "IN", 
+                                                                       "IL", "WI", "MN", 
+                                                                       "IA", "MO", "KS", 
+                                                                       "NE", "SD", "ND", 
+                                                                       "Midwest") ~ "Midwest", 
+                                                       Location %in% c("NM", "CO", "WY", 
+                                                                       "MT", "ID", "UT", 
+                                                                       "AZ", "NV", "WA", 
+                                                                       "OR", "CA", "HI", 
+                                                                       "AK", "West", 
+                                                                       "Western Region") ~ "West", 
+                                                       Location %in% c("USA", "PR", "GU") ~ "USA, General"))
+
+
+ecoli <- ecoli %>% mutate(region = case_when(Location %in% c("ME", "VT", "NH", 
+                                                                       "MA", "CT", "RI", 
+                                                                       "NY", "NJ", "PA", 
+                                                                       "Northeast") ~ "Northeast", 
+                                                       Location %in% c("DE", "MD", "DC", 
+                                                                       "WV", "VA", "NC", 
+                                                                       "SC", "GA", "FL", 
+                                                                       "AL", "MS", "LA", 
+                                                                       "TX", "OK", "AR", 
+                                                                       "TN", "KY", 
+                                                                       "South") ~ "South", 
+                                                       Location %in% c("OH", "MI", "IN", 
+                                                                       "IL", "WI", "MN", 
+                                                                       "IA", "MO", "KS", 
+                                                                       "NE", "SD", "ND", 
+                                                                       "Midwest") ~ "Midwest", 
+                                                       Location %in% c("NM", "CO", "WY", 
+                                                                       "MT", "ID", "UT", 
+                                                                       "AZ", "NV", "WA", 
+                                                                       "OR", "CA", "HI", 
+                                                                       "AK", "West", 
+                                                                       "Western Region") ~ "West", 
+                                                       Location %in% c("USA", "PR", "GU") ~ "USA, General"))
+
+campylobacter <- campylobacter %>% mutate(region = case_when(Location %in% c("ME", "VT", "NH", 
+                                                                       "MA", "CT", "RI", 
+                                                                       "NY", "NJ", "PA", 
+                                                                       "Northeast") ~ "Northeast", 
+                                                       Location %in% c("DE", "MD", "DC", 
+                                                                       "WV", "VA", "NC", 
+                                                                       "SC", "GA", "FL", 
+                                                                       "AL", "MS", "LA", 
+                                                                       "TX", "OK", "AR", 
+                                                                       "TN", "KY", 
+                                                                       "South") ~ "South", 
+                                                       Location %in% c("OH", "MI", "IN", 
+                                                                       "IL", "WI", "MN", 
+                                                                       "IA", "MO", "KS", 
+                                                                       "NE", "SD", "ND", 
+                                                                       "Midwest") ~ "Midwest", 
+                                                       Location %in% c("NM", "CO", "WY", 
+                                                                       "MT", "ID", "UT", 
+                                                                       "AZ", "NV", "WA", 
+                                                                       "OR", "CA", "HI", 
+                                                                       "AK", "West", 
+                                                                       "Western Region") ~ "West", 
+                                                       Location %in% c("USA", "PR", "GU") ~ "USA, General"))
+
+# Salmomella
+
+cases_by_region_sal <- salmonella %>% filter(!is.na(year)) %>% group_by(region, year) %>% 
+                            summarize(num = n()) %>% ungroup() %>%  group_by(year) %>% summarize(region = region, percent = round(num/sum(num),2)) %>% pivot_wider(names_from = region, values_from = percent) 
+
+
+
+# E. Coli
+
+cases_by_region_ecoli <- ecoli %>% filter(!is.na(year)) %>% group_by(region, year) %>% 
+                            summarize(num = n()) %>% ungroup() %>%  group_by(year) %>% summarize(region = region, percent = round(num/sum(num),2)) %>% pivot_wider(names_from = region, values_from = percent) 
+
+
+
+# campylobacter
+
+cases_by_region_camp <- campylobacter %>% filter(!is.na(year)) %>% group_by(region, year) %>% 
+                            summarize(num = n()) %>% ungroup() %>%  group_by(year) %>% summarize(region = region, percent = round(num/sum(num),2)) %>% pivot_wider(names_from = region, values_from = percent) 
+
+## Get the data into a table 
+cases_region <- as.data.frame(rbind(cases_by_region_sal, cases_by_region_ecoli, cases_by_region_camp))
+cases_region[31:33, ] <- ""
+cases_region <- apply(cases_region, 2, as.character)
+cases_region[31, 1] <- "Salomella"
+cases_region[32, 1] <- "E. Coli"
+cases_region[33, 1] <- "Campylobacter"
+
+cases_region <- cases_region[c(31,1:10,32,11:20,33,21:30), c(1,5,2,3,4,6)]
+
+cases_region %>% 
+  kbl(caption = "Percent of each years total cases by region of US", booktabs=T,    escape=F, align = "c") %>%
+  kable_styling(full_width = FALSE, latex_options = c('hold_position'))
+
+```
+
+From table X above we note that for all the illnesses that the percent of total cases by region is generally variable, over time. Though we can see that for Salmonella and Camylobacter that the Southern region of the United States generally has the highest percent of cases in any given year, especially in more recent years. While the Northeast generally has the lowest percentage of cases across all of the illnesses. In E.Coli it appears that in earlier years there is generally a higher percent of the cases in the Western Region of the United States, though in later years it appears that the percent of cases in the US lowers for the West, and starts to increase for the Southern US. Thus it appears that when looking into outbreak prevention it may be beneficial to consider focusing on the South. Though we do concede that these are raw percentages that fail to account for population density in these regions. 
+
+
+
+
+
+## Sources of outbreaks
+```{r,message=FALSE, warning=FALSE}
+## Lets start doing some eda with some of the categories we have defiend 
+plotdata_sal <- salmonella %>% group_by(year, Isolation.source.category) %>% summarize(num = n())
+
+plot7 <- ggplot(data = plotdata_sal, aes(x = year, y = num, color = Isolation.source.category)) + 
+          geom_line() + 
+          geom_point() + 
+          theme(legend.position = "none") + 
+          labs(title= "Salmonella", 
+                           x = "", 
+                           y = "Number of cases")
+
+
+# Ecoli 
+plotdata_ecoli <- ecoli %>% group_by(year, Isolation.source.category) %>% summarize(num = n())
+
+plot8 <- ggplot(data = plotdata_ecoli, aes(x = year, y = num, color = Isolation.source.category)) + 
+          geom_line() + 
+          geom_point() + 
+          theme(legend.position = "none") +
+           labs(title= "E. Coli", 
+                           x = "", 
+                           y = "Number of cases")  + 
+                      scale_color_discrete(name = "Illness source")
+
+# Camp
+plotdata_camp <- campylobacter %>% group_by(year, Isolation.source.category) %>% summarize(num = n())
+
+plot9 <- ggplot(data = plotdata_camp, aes(x = year, y = num, color = Isolation.source.category)) + 
+          geom_line() + 
+          geom_point() +
+          labs(title= "Camplyobacter", 
+                           x = "", 
+                           y = "Number of cases")
+
+figure3 <- ggarrange(plot7, plot8, nrow =2)
+annotate_figure(figure3, 
+                 bottom = text_grob("Figure X: Number of cases by Isolation Source", color = "black",   hjust = 1, x = 1, face = "italic", size = 10),)
+
+annotate_figure(plot9, 
+                 bottom = text_grob("Figure X: Number of cases by Isolation Source, Campylobacter", color = "black",   hjust = 1, x = 1, face = "italic", size = 10),)
+
+```
+
+
+We note that looking at the trends over time the Isolation source that generally for all 3 of the illnesses that in later years poultry is one of (if not the biggest) causes of the illnesses we have included. Though we do note that the number of Isolations from humans is quite large for all illnesses as well. Other sources such as produce and pig based sources seem to be relatively low across all 3 illness, which could indicate that in our modeling that we may want to focus on sources that have higher incience for our illnesses over time as it may be easier to capture an outbreak this way. 
+
+
+
+```{r,message=FALSE, warning=FALSE}
+# Lets look at Min differences
+
+
+# Salmonella 
+Missing_min_same <- length(which(is.na(salmonella$Min.same)))/nrow(salmonella)
+close_min_same <- length(which(salmonella$Min.same <= 7))/nrow(salmonella)
+far_min_same <- length(which(salmonella$Min.same > 7))/nrow(salmonella)
+
+min_same_salmonella <- data.frame()
+min_same_salmonella[1,1] <- "Missing"
+min_same_salmonella[1,2] <- round(Missing_min_same,2)
+min_same_salmonella[2,1] <- "Closely related (within 7 SNPs)"
+min_same_salmonella[2,2] <- round(close_min_same,2)
+min_same_salmonella[3,1] <- "Not closely related"
+min_same_salmonella[3,2] <- round(far_min_same,2)
+names(min_same_salmonella) <- c("Minimum Same", "Percent")
+
+min_same_salmonella %>% kbl()
+
+#
+Missing_min_same <- length(which(is.na(ecoli$Min.same)))/nrow(ecoli)
+close_min_same <- length(which(ecoli$Min.same <= 7))/nrow(ecoli)
+far_min_same <- length(which(ecoli$Min.same > 7))/nrow(ecoli)
+
+min_same_ecoli <- data.frame()
+min_same_ecoli[1,1] <- "Missing"
+min_same_ecoli[1,2] <- round(Missing_min_same,2)
+min_same_ecoli[2,1] <- "Closely related (within 7 SNPs)"
+min_same_ecoli[2,2] <- round(close_min_same,2)
+min_same_ecoli[3,1] <- "Not closely related"
+min_same_ecoli[3,2] <- round(far_min_same,2)
+names(min_same_ecoli) <- c("Minimum Same", "Percent")
+
+min_same_ecoli %>% kbl()
+
+#
+Missing_min_same <- length(which(is.na(campylobacter$Min.same)))/nrow(campylobacter)
+close_min_same <- length(which(campylobacter$Min.same <= 7))/nrow(campylobacter)
+far_min_same <- length(which(campylobacter$Min.same > 7))/nrow(campylobacter)
+
+min_same_campylobacter <- data.frame()
+min_same_campylobacter[1,1] <- "Missing"
+min_same_campylobacter[1,2] <- round(Missing_min_same,2)
+min_same_campylobacter[2,1] <- "Closely related (within 7 SNPs)"
+min_same_campylobacter[2,2] <- round(close_min_same,2)
+min_same_campylobacter[3,1] <- "Not closely related"
+min_same_campylobacter[3,2] <- round(far_min_same,2)
+names(min_same_campylobacter) <- c("Minimum Same", "Percent")
+
+min_same_campylobacter %>% kbl()
+
+```
+
+We observe that the min same is the same. Are there temporal trends by region? We will seek to see if any given 
+
+```{r,message=FALSE, warning=FALSE}
+# Month and year 
+
+#sal_subset$week <- week(sal_subset$Create.date)
+#x <- sal_subset %>%  group_by(year, week) %>% 
+ #               summarize(meaa = mean(Min.same, na.rm = T), 
+  #                        num_mn = sum(is.na(Min.same)), 
+   #                       num = n())  %>% 
+    #            ungroup() %>% 
+     #           arrange(year, week)
+      
+
+#x <- as.data.frame(x)   
+
+#x$try <- 0
+
+#x <- x %>% mutate(weeks =  case_when(year == 2013 ~ week, 
+ #                               year == 2014 ~ week+52, 
+  #                              year == 2015 ~ week+(2*52), 
+   #                             year == 2016 ~ week+(3*52),
+    #                            year == 2017 ~ week+(4*52),
+     #                           year == 2018 ~ week+(5*52),
+     #                           year == 2019 ~ week+(6*52),
+      #                          year == 2020 ~ week+(7*52),
+       #                         year == 2021 ~ week+(8*52),
+        #                        year == 2022 ~ week+(9*52)))
+
+#x <- as.data.frame(x)
+#for(i in 2:nrow(x)){
+ # x$try[i] <- x$weeks[i]-x$weeks[i-1]
+#}
+
+# We want to look at outbreaks close in time
+#x %>% filter(try < 2 & meaa  < 7)
+
+
+```
+
+
+
+```{r ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}
+
+```
