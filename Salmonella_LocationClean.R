@@ -16,6 +16,8 @@ sal_us <- sal_dat[sal_dat$Location %like% "US", ]
 dim(sal_us) #93763    21
 names(which(colSums(is.na(sal_us)) > 0))
 
+length(unique(sal_us$Location))# 136
+
 #clean for location
 sal_us$Location[sal_us$Location %like% "USA:NC"== TRUE] <- "NC"
 sal_us$Location[sal_us$Location %like% "USA: NC"== TRUE] <- "NC"
@@ -158,5 +160,6 @@ sal_us$Location[sal_us$Location %like% "Tulsa" == TRUE] <- "OK"
 sal_us$Location[sal_us$Location %like% "Western Region" == TRUE] <- "Western Region"
 sal_us$Location[sal_us$Location %like% "region 9" == TRUE] <- "HHS region 9"
 
+length(unique(sal_us$Location))# 56
 unique(sal_us$Location)
 
