@@ -13,7 +13,7 @@ dim(sal_dat) # 194239     21
 
 #extract only US cases
 sal_us <- sal_dat[sal_dat$Location %like% "US", ]
-dim(sal_us) #93763    21
+dim(sal_us) # 93763    21
 names(which(colSums(is.na(sal_us)) > 0))
 
 length(unique(sal_us$Location))# 136
