@@ -1,7 +1,16 @@
+## This is a code for PHP 2550 at Brown University SPH, the purpose is to 
+## clean location that have different format e.g some are two letters state
+## abbreviation, some are full state names or some are the big cities name
+## without the state name. To account for this heterogenity, we preprocess
+## the data here.
+
 library(data.table)
 
+#load the data
 campylobacter_dat <- read.csv("Campylobacter_13to22.csv")
 dim(campylobacter_dat) #59507    21
+
+#extract only US cases
 campylobacter_us <- campylobacter_dat[campylobacter_dat$Location %like% "US", ]
 dim(campylobacter_us) # 44949    21
 
@@ -149,7 +158,6 @@ campylobacter_us$Location[campylobacter_us$Location %like% "Chicago" == TRUE] <-
 campylobacter_us$Location[campylobacter_us$Location %like% ", CA" == TRUE] <- "CA"
 campylobacter_us$Location[campylobacter_us$Location %like% ", NY" == TRUE] <- "NY"
 campylobacter_us$Location[campylobacter_us$Location %like% ", CO" == TRUE] <- "CO"
-
 campylobacter_us$Location[campylobacter_us$Location %like% ", NC" == TRUE] <- "NC"
 campylobacter_us$Location[campylobacter_us$Location %like% "Bethesda" == TRUE] <- "MD"
 campylobacter_us$Location[campylobacter_us$Location %like% "District of Columbia" == TRUE] <- "DC"
@@ -214,7 +222,6 @@ campylobacter_us$Location[campylobacter_us$Location %like% "Milwaukee" == TRUE] 
 campylobacter_us$Location[campylobacter_us$Location %like% "Lafayette" == TRUE] <- "LA"
 campylobacter_us$Location[campylobacter_us$Location %like% "Cambridge" == TRUE] <- "MA"
 campylobacter_us$Location[campylobacter_us$Location %like% "Moscow" == TRUE] <- "ID"
-
 campylobacter_us$Location[campylobacter_us$Location %like% ": AK" == TRUE] <- "AK"
 campylobacter_us$Location[campylobacter_us$Location %like% "Tucson" == TRUE] <- "AZ"
 campylobacter_us$Location[campylobacter_us$Location %like% ", DE" == TRUE] <- "DE"
