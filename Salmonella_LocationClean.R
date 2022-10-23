@@ -1,3 +1,9 @@
+## This is a code for PHP 2550 at Brown University SPH, the purpose is to 
+## clean location that have different format e.g some are two letters state
+## abbreviation, some are full state names or some are the big cities name
+## without the state name. To account for this heterogenity, we preprocess
+## the data here.
+
 library(data.table)
 
 #load the data
