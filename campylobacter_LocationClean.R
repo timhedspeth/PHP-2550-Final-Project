@@ -13,6 +13,7 @@ dim(campylobacter_dat) #59507    21
 #extract only US cases
 campylobacter_us <- campylobacter_dat[campylobacter_dat$Location %like% "US", ]
 dim(campylobacter_us) # 44949    21
+length(unique(campylobacter$Location))# 74
 
 campylobacter_us$Location[campylobacter_us$Location %like% "USA:NC"== TRUE] <- "NC"
 campylobacter_us$Location[campylobacter_us$Location %like% "USA: NC"== TRUE] <- "NC"
@@ -229,6 +230,7 @@ campylobacter_us$Location[campylobacter_us$Location %like% "Albany CA" == TRUE] 
 campylobacter_us$Location[campylobacter_us$Location %like% "Fayetteville" == TRUE] <- "CA"
 campylobacter_us$Location[campylobacter_us$Location %like% "Lubbock" == TRUE] <- "TX"
 
+length(unique(campylobacter$Location))# 53
 unique(campylobacter_us$Location)
 
 
