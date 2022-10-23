@@ -8,7 +8,7 @@ library(data.table)
 
 #load the data
 campylobacter_dat <- read.csv("Campylobacter_13to22.csv")
-dim(campylobacter_dat) #59507    21
+dim(campylobacter_dat) # 59507    21
 
 #extract only US cases
 campylobacter_us <- campylobacter_dat[campylobacter_dat$Location %like% "US", ]
