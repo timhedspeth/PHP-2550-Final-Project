@@ -17,12 +17,7 @@ Have you ever woken up in the morning and saw a news headline, like "E Coli. Out
 ## Literature review 
 
 
-# Data Overview 
-
-## What data are we using 
-The data that we working with in this analysis is an isolate of Samonella, which is utilized so we understand the data 
-
-
+# Data Tools 
 ```{r}
 
 #~~~~~~~~~~~~#
@@ -31,40 +26,33 @@ The data that we working with in this analysis is an isolate of Samonella, which
 
 library(lubridate) # working with dates 
 library(tidyverse) # working with data 
+library(kableExtra)
+library(anytime)
 
-# Read in the data 
+
+#~~~~~~~~#
+## Data ## 
+#~~~~~~~~#
+
 setwd("~/Desktop/Semester_3/Practical/Final")
-salmonella <- read.csv("source_salmonella_US.csv")
-ecoli <- read.csv("E.coli_2013-2022.csv")
-campylobacter <- read.csv("Campylobacter_2013-2022.csv")
-
-
-
+salmonella <- read.csv("final_salmonella.csv")
+ecoli <- read.csv("final_ecoli.csv")
+campylobacter <- read.csv("final_Campylobacter.csv")
 
 
 
 ```
+In this analysis we consider longitudinal data from 2013-2022 regarding 3 food borne illnesses, Salmonella, E.Coli, and Camplyobacter. We have 3 different data sets which contain 25 variables for each of the illnesses individually, we note that the Salmonella data set is the largest with 93,763 observations, Camplyobacter is the second largest with 44,949 observations and E. Coli with 34,805 observations. In order to increase the efficiency of the exploratory analysis we load these data sets separately so computation can be done on individual data sets. 
+
+The data was extracted from ncbi and in our extraction process we conditioned on the *Collection.date* variable to extract information from. In initial analysis we noted that there was an extreme level of heterogeneity($>$ 6,000 levels in the Salmonella data) in the *Isolation.Source* variable, which required preprocessing prior to conducting an exploratory analysis. The source_group.R uses the **tolower()** command to make the levels all lowercase and therefore easier to work with. With the data in a more manageable format we used the **$\%$like$\%$** command to find specified levels and place them into more general groups for our analysis, e.g. grouping levels that contain apple into a produce category. 
+
+Description of cleaning for USA and  Date.
 
 
-In our analysis we have a longitudinal data set with data regarding salmonella, ranging from 2013 to 2022. 
-
-
-
-
-
-
-
-
-There are 16,246 rows of the data frame that correspond to a single strain of the virus, these strains likely coulld be excluded they are rare, and there are 3 strains that are commonly observed, AG3, Enteritdis, Salmonella enterica subsp. enterica. For the sake of future analysis it would likely be beneficial to find these common strains and group by them to get common strains of the virus. 
-
-
-## Variables of interest 
-
-For our analysis there are a few variables that are of interest to our analysis. The first of which is the **Collection.date** variable, indicating when the sample was collected. **AMR_genotypes** is the Antimicrobial resistance genes, where a missing value indicates that there is no antimicrobial  resistance detected. **AST_phenotypes** tells us the phenotype based on testing, **host** is the host species, **host_disease** could be missing, **isolate_identifiers** a list alternative isolates, **isolation_source** describes the physical, environmental and/or local geographical source of the biological sample from which the sample was derived, if provided by the submitter, **epi_type** can be either clinical or environmental, **k-mer** is the organism work, **Min-same** is a measure of closeness to other isolates of the same type, **outbreak** if there is an unusal number of cases in an area, **erd_group** is the SNP cluster, **source_type** where the data comes from. 
-
-
+# Exploratory Data Analysis 
 
 ## Missing Data 
+The [NCBI](https://www.ncbi.nlm.nih.gov/pathogens/submit-data/) collects data from surveillance and research efforts that are currently ongoing that look at a multitude of sources such as food, patients, production, etc. After data is submitted it is clustered to related pathogens, allowing for people to look for closely related pathogens. Given that the data is  being uploaded from multiple sources with what we presume to be free text fields in some columns  eg. Isolation source there is a lot of heterogeneity in  reporting and in data quality. Data quality aside we are interested in the missingness, which we explore in table and figure 1 below. 
 
 ```{r}
 
@@ -108,7 +96,7 @@ Missing_by_col <- Missing_by_col %>% filter(x != 0 &
 names(Missing_by_col) <- c("Salmonella", "E. Coli", "Campylobacter")
 
 # Print the data frame 
-Missing_by_col %>% kbl(caption = "Variables with some missing observations")
+Missing_by_col %>% kbl(caption = "Variables with some missing data")
 
 
 
@@ -138,8 +126,7 @@ na_by_row_camp <- as.data.frame(apply(campylobacter,1, is.na))
 sum_na_by_row_camp <- apply(na_by_row_camp,2,sum)/nrow(na_by_row_camp)
 campylobacter_missing <- as.data.frame(sum_na_by_row_camp)
 
-
-
+# Make a plot of missingness by 
 ggplot(data = salmonella_missing, aes(x = sum_na_by_row_sal, color = "sum_na_by_row_sal")) + 
   geom_density(alpha = .9) + 
   geom_density(data = ecoli_missing, aes(x = sum_na_by_row_ecoli,
@@ -150,7 +137,16 @@ ggplot(data = salmonella_missing, aes(x = sum_na_by_row_sal, color = "sum_na_by_
 
 ```
 
-From the information we can see that there is a great deal of missingness in this data set and the peracent missingness is relatley high for most of the variables. Though there is heterogeneity in the data, with some variables being observed frequently with one data set and being missing in the data set. 
+We note from table 1 that there are some variables that are missing in great quantities, such as *Serovar*, *Host_disease*, *Lat.Lon*, *Source_type*, *Computed.types*, and *outbreak* given the extreme missingness for the variables in most of our illness types we decide to remove them from our analysis. On the contrary we have no missingness in the *organism group*, *Isolate*, *Create.date*, *Collection.date*, *Location*, *Biosample*, and the variable we created in the preprocessing *Isolation.source.category*. Though we observe that there are extremes there are variables with differing levels of missingness, which is likely due to the fact that this data is reported by the researcher.  The *Strain.name*,*Isolation.Source*, and *Isolation.type* is missing in very small quantity which could be due to an oversight by the researcher. 
+
+```{r}
+## Delete variables with most of the values missing 
+
+salmonella <- salmonella[,-which(names(salmonella) %in% c("Serovar", "Host.Disease", "Lat.Lon", "Source.type", "Outbreak"))]
+ecoli <- ecoli[,-which(names(ecoli) %in% c("Serovar", "Host.Disease", "Lat.Lon", "Source.type", "Outbreak"))]
+campylobacter <- campylobacter[,-which(names(campylobacter) %in% c("Serovar", "Host.Disease", "Lat.Lon", "Source.type", "Outbreak"))]
+
+```
 
 
 
@@ -159,33 +155,150 @@ From the information we can see that there is a great deal of missingness in thi
 
 
 
-## Exploratory Analysis 
-We note that the data in this study is longitudinal in nature, we sought to quantify the trends in 
+
+## Variables of interest 
+Prior to proceeding to further analysis we will further discuss the variables aviable and if they will remain in our analysis. Recall that the goal of this project is to predict outbreaks of these food borne illness and explore their  seasonality. This means that our main interest lays in the *Collection.Date* and *Location* as we want to observe if there are temporal or spatial trends regarding the illnesses. On top of this we consider that information regarding *strain*, *Isolation.Source* and *Isolation.type* allow for us to look for potential causes of the outbreak. Also looking for similarities between strains we can look at the *SNP.Cluster* or the *Min.Same* and *Min.Diff* variables, and since there is approximatley half of the data missing in the *SNP.Cluster* we will assess relative closeness with the *Min.Same* and *Min.diff* variables. Given that we do not specifically look at antibiotic resistance we do not look at *AMR.Genotypes* and we do not stand to gain a lot from looking at *X.Organism.group* or *Assembly* so we do not consider these. 
+
+
+
+```{r}
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~#
+## Baseline understanding ## 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+# We note that some of the variables may not be that informative to our analysis 
+# so we explore to see if the columns tell us anything. This will allow for us 
+# to determine which variables to include in this analysis 
+
+
+## X.Organism.group
+
+sal_group <- levels(as.factor(salmonella$X.Organism.group))
+ecoli_grop <- levels(as.factor(ecoli$X.Organism.group))
+camp_group <-  levels(as.factor(campylobacter$X.Organism.group))
+
+## Strain 
+sal_strain <- length(levels(as.factor(salmonella$Strain)))
+ecoli_strain <- length(levels(as.factor(ecoli$Strain)))
+camp_strain <- length(levels(as.factor(campylobacter$Strain)))
+
+## Isolate identifiers 
+
+# This is more complex than others 
+
+
+## 
+
+length(levels(as.factor(salmonella$Serovar)))
+
+
+levels(as.factor(salmonella$Outbreak))
+
+
+
+
+```
+
+
+
+For our analysis there are a few variables that are of interest to our analysis. The first of which is the **Collection.date** variable, indicating when the sample was collected. **AMR_genotypes** is the Antimicrobial resistance genes, where a missing value indicates that there is no antimicrobial  resistance detected. **AST_phenotypes** tells us the phenotype based on testing, **host** is the host species, **host_disease** could be missing, **isolate_identifiers** a list alternative isolates, **isolation_source** describes the physical, environmental and/or local geographical source of the biological sample from which the sample was derived, if provided by the submitter, **epi_type** can be either clinical or environmental, **k-mer** is the organism work, **Min-same** is a measure of closeness to other isolates of the same type, **outbreak** if there is an unusal number of cases in an area, **erd_group** is the SNP cluster, **source_type** where the data comes from. 
+
+
+
+```{r}
+# We have to consider the date, given that the Colelction date is very bad we will
+# have to clean it ourself 
+
+# Start with dates that have complete information 
+sal_complete_date <- salmonella %>% filter(nchar(Collection.date) > 7)
+sal_complete_date$Collection.date <- as.Date(sal_complete_date$Collection.date)
+sal_complete_date$year <- year(sal_complete_date$Collection.date)
+sal_complete_date$month <- month(sal_complete_date$Collection.date)
+sal_complete_date$day <- day(sal_complete_date$Collection.date)
+
+# Some dates have year and month lets get this info 
+sal_only_month <- salmonella %>% filter(nchar(Collection.date) == 7)
+sal_only_month$Collection.date <- anydate(sal_only_month$Collection.date)
+sal_only_month$year <- year(sal_only_month$Collection.date)
+sal_only_month$month <- month(sal_only_month$Collection.date)
+sal_only_month$day <- NA
+
+# Some dates have only the year, so we must account for this  
+sal_only_year <- salmonella %>% filter(nchar(Collection.date) < 7)
+sal_only_year$Collection.date <- anydate(sal_only_year$Collection.date)
+sal_only_year$year <- year(sal_only_year$Collection.date)
+sal_only_year$month <- NA
+sal_only_year$day <- NA
+
+salmonella <- rbind(sal_complete_date, sal_only_month, sal_only_year)
+
+## Ecoli 
+# Start with dates that have complete information 
+ecoli_complete_date <- ecoli %>% filter(nchar(Collection.date) > 7)
+ecoli_complete_date$Collection.date <- as.Date(ecoli_complete_date$Collection.date)
+ecoli_complete_date$year <- year(ecoli_complete_date$Collection.date)
+ecoli_complete_date$month <- month(ecoli_complete_date$Collection.date)
+ecoli_complete_date$day <- day(ecoli_complete_date$Collection.date)
+
+# Some dates have year and month lets get this info 
+ecoli_only_month <- ecoli %>% filter(nchar(Collection.date) == 7)
+ecoli_only_month$Collection.date <- anydate(ecoli_only_month$Collection.date)
+ecoli_only_month$year <- year(ecoli_only_month$Collection.date)
+ecoli_only_month$month <- month(ecoli_only_month$Collection.date)
+ecoli_only_month$day <- NA
+
+# Some dates have only the year, so we must account for this  
+ecoli_only_year <- ecoli %>% filter(nchar(Collection.date) < 7)
+ecoli_only_year$Collection.date <- anydate(ecoli_only_year$Collection.date)
+ecoli_only_year$year <- year(ecoli_only_year$Collection.date)
+ecoli_only_year$month <- NA
+ecoli_only_year$day <- NA
+
+ecoli <- rbind(ecoli_complete_date, ecoli_only_month, ecoli_only_year)
+
+
+## Camploybacter
+
+# Start with dates that have complete information 
+camp_complete_date <- campylobacter %>% filter(nchar(Collection.date) > 7)
+camp_complete_date$Collection.date <- as.Date(camp_complete_date$Collection.date)
+camp_complete_date$year <- year(camp_complete_date$Collection.date)
+camp_complete_date$month <- month(camp_complete_date$Collection.date)
+camp_complete_date$day <- day(camp_complete_date$Collection.date)
+
+# Some dates have year and month lets get this info 
+camp_only_month <- campylobacter %>% filter(nchar(Collection.date) == 7)
+camp_only_month$Collection.date <- anydate(camp_only_month$Collection.date)
+camp_only_month$year <- year(camp_only_month$Collection.date)
+camp_only_month$month <- month(camp_only_month$Collection.date)
+camp_only_month$day <- NA
+
+# Some dates have only the year, so we must account for this  
+camp_only_year <- campylobacter %>% filter(nchar(Collection.date) < 7)
+camp_only_year$Collection.date <- anydate(camp_only_year$Collection.date)
+camp_only_year$year <- year(camp_only_year$Collection.date)
+camp_only_year$month <- NA
+camp_only_year$day <- NA
+
+campylobacter <- rbind(camp_complete_date, camp_only_month, camp_only_year)
+
+
+
+```
+
+
+
+
+
+
+
+
+
+## Trends over time 
 ```{r, message=FALSE}
-# Let us consider looking at trends over time
 
-# We must have our data in a form that is workable form for analysis 
-salmonella$Create.date <- as.Date(salmonella$Create.date) 
-ecoli$Create.date <- as.Date(ecoli$Create.date)
-campylobacter$Create.date <- as.Date(campylobacter$Create.date)
-
-# Decompose the dates to day month year
-
-# Day
-salmonella$day <- day(salmonella$Create.date)
-ecoli$day <- day(ecoli$Create.date)
-campylobacter$day <- day(campylobacter$Create.date)
-
-# Month 
-salmonella$month <- month(salmonella$Create.date)
-ecoli$month <- month(ecoli$Create.date)
-campylobacter$month <- month(campylobacter$Create.date)
-
-# Year 
-salmonella$year <- year(salmonella$Create.date)
-ecoli$year <- year(ecoli$Create.date)
-campylobacter$year <- year(campylobacter$Create.date)
-
+# Let us consider data by year
 
 
 
@@ -223,29 +336,15 @@ ggplot(data = Num_per_year_salmonella, aes(x = year, y = num, color = "Salmonell
 
 
 
-# Number of cases per month 
-salmonella$month1 <- month(salmonella$Create.date)
-salmonella <- salmonella %>% mutate(month = case_when(month1 == 1 ~ "Jan", 
-                                                      month1 == 2 ~  "Feb", 
-                                                      month1 == 3 ~ "Mar", 
-                                                      month1 == 4 ~ "Apr", 
-                                                      month1 == 5 ~ "May", 
-                                                      month1 == 6 ~ "Jun", 
-                                                      month1 == 7 ~ "Jul", 
-                                                      month1 == 8 ~ "Aug", 
-                                                      month1 == 9 ~ "Sep", 
-                                                      month1 == 10 ~ "Oct", 
-                                                      month1 == 11 ~ "Nov", 
-                                                      month1 == 12 ~ "Dec"))
-
+# Number of cases per month for salmonella 
 Num_per_month_sal <- salmonella %>%  
                      group_by(year, month) %>% 
                      summarize(num =  n())
 Num_per_month_sal$month <- factor(Num_per_month_sal$month, levels = c("Jan", "Feb", 
-                                                                    "Mar", "Apr", "May", 
-                                                                    "Jun", "Jul", "Aug", 
-                                                                    "Sep", "Oct", 
-                                                                    "Nov", "Dec"))
+                                                                      "Mar", "Apr", "May", 
+                                                                     "Jun", "Jul", "Aug", 
+                                                                     "Sep", "Oct", 
+                                                                     "Nov", "Dec"))
 ggplot(data = Num_per_month_sal, aes(x = as.numeric(month), y = num)) + 
   geom_point(aes(color = as.factor(year))) + 
   scale_x_continuous(breaks=seq(1,12,1), labels=c("Jan", "Feb", 
@@ -256,830 +355,63 @@ ggplot(data = Num_per_month_sal, aes(x = as.numeric(month), y = num)) +
   geom_smooth()
   
 
-table(isolated$Isolation.source)
-
-table(isolated[c(grep("animal", isolated$Isolation.source),grep("Animal", isolated$Isolation.source))
-               ,]$Isolation.source)
-```
-
-We need to begin by doing some cleaning of the data that we have in our data file, one of the main variables that we are interested in is the isolation source, as tracing the source of the infection is of great interest for our analysis. In its original form this is a factor variable with over 6,300 levels, which is due to poor reporting practices, the first objective is to greatly reduce the heterogeneity of this variable to make the analysis achievable. We will start by looking at identifying potential sources that may be reported frequently in many forms such as chicken and their by products like eggs. This analysis requires the assumption that these observations will map to true chicken data which may be a strong assumption, but without this the analysis would not be plausible.  
-
-
-
-
-```{r}
-x <- as.data.frame(table(salmonella$Isolation.source))
-x %>% filter(Freq > 50)
-```
-```{r}
-# This will be the cleaning of the data regarding the isolation source
-# Given the extreme heterogeniety in 
-
-# We note that there are going to be some sources 
-
-length(levels(as.factor(salmonella$Isolation.source)))
-#table(salmonella$Isolation.type)
-
-# Lets start with chicken
-salmonella[grep("chicken", salmonella$Isolation.source),9] <- "Chicken"
-salmonella[grep("Chicken", salmonella$Isolation.source),9] <- "Chicken"
-salmonella[grep("egg", salmonella$Isolation.source),9] <- "Chicken"
-salmonella[grep("Egg", salmonella$Isolation.source),9] <- "Chicken"
-salmonella[grep("Poultry", salmonella$Isolation.source),9] <- "Chicken"
-salmonella[grep("poultry", salmonella$Isolation.source),9] <- "Chicken"
-salmonella[grep("Broiler", salmonella$Isolation.source),9] <- "Chicken"
-salmonella[grep("broiler", salmonella$Isolation.source),9] <- "Chicken"
-salmonella[grep("hen", salmonella$Isolation.source),9] <- "Chicken"
-salmonella[grep("Hen", salmonella$Isolation.source),9] <- "Chicken"
-salmonella[grep("chkn", salmonella$Isolation.source),9] <- "Chicken"
-salmonella[grep("CHICKEN", salmonella$Isolation.source),9] <- "Chicken"
-salmonella[grep("chick", salmonella$Isolation.source),9] <- "Chicken"
-salmonella[grep("Chick", salmonella$Isolation.source),9] <- "Chicken"
-salmonella[grep("CB", salmonella$Isolation.source),9] <- "Chicken"
-salmonella[grep("EGG", salmonella$Isolation.source),9] <- "Chicken"
-salmonella[grep("yolk", salmonella$Isolation.source),9] <- "Chicken"
-salmonella[grep("POULTRY", salmonella$Isolation.source),9] <- "Chicken"
-salmonella[grep("Gallus", salmonella$Isolation.source),9] <- "Chicken"
-
-
-
-# length(levels(as.factor(salmonella$Isolation.source))) # This reduces by a factor of approx 500 
-
-# Lets do beef 
-salmonella[grep("beef", salmonella$Isolation.source),9] <- "Cow/Beef"
-salmonella[grep("Beef", salmonella$Isolation.source),9] <- "Cow/Beef"
-salmonella[grep("cow", salmonella$Isolation.source),9] <- "Cow/Beef"
-salmonella[grep("Cow", salmonella$Isolation.source),9] <- "Cow/Beef"
-salmonella[grep("Cattle", salmonella$Isolation.source),9] <- "Cow/Beef"
-salmonella[grep("cattle", salmonella$Isolation.source),9] <- "Cow/Beef"
-salmonella[grep("Veal", salmonella$Isolation.source),9] <- "Cow/Beef"
-salmonella[grep("veal", salmonella$Isolation.source),9] <- "Cow/Beef"
-salmonella[grep("bovine", salmonella$Isolation.source),9] <- "Cow/Beef"
-salmonella[grep("Bovine", salmonella$Isolation.source),9] <- "Cow/Beef"
-salmonella[grep("heifer", salmonella$Isolation.source),9] <- "Cow/Beef"
-salmonella[grep("Heifer", salmonella$Isolation.source),9] <- "Cow/Beef"
-salmonella[grep("Steer", salmonella$Isolation.source),9] <- "Cow/Beef"
-salmonella[grep("steer", salmonella$Isolation.source),9] <- "Cow/Beef"
-salmonella[grep("Bos taurus", salmonella$Isolation.source),9] <- "Cow/Beef"
-salmonella[grep("(Bos taurus)", salmonella$Isolation.source),9] <- "Cow/Beef"
-salmonella[grep("GB", salmonella$Isolation.source),9] <- "Cow/Beef"
-salmonella[grep("GROUND BEEF", salmonella$Isolation.source),9] <- "Cow/Beef"
-salmonella[grep("hamburger", salmonella$Isolation.source),9] <- "Cow/Beef"
-salmonella[grep("calf", salmonella$Isolation.source),9] <- "Cow/Beef"
-salmonella[grep("Livestock", salmonella$Isolation.source),9] <- "Cow/Beef"
-salmonella[grep("livestock", salmonella$Isolation.source),9] <- "Cow/Beef"
-
-
-length(levels(as.factor(salmonella$Isolation.source)))
-
-
-# Pig/pork 
-salmonella[grep("pork", salmonella$Isolation.source),9] <- "Pig"
-salmonella[grep("Pork", salmonella$Isolation.source),9] <- "Pig"
-salmonella[grep("swine", salmonella$Isolation.source),9] <- "Pig"
-salmonella[grep("Swine", salmonella$Isolation.source),9] <- "Pig"
-salmonella[grep("pig", salmonella$Isolation.source),9] <- "Pig"
-salmonella[grep("Pig", salmonella$Isolation.source),9] <- "Pig"
-salmonella[grep("porcine", salmonella$Isolation.source),9] <- "Pig"
-salmonella[grep("Porcine", salmonella$Isolation.source),9] <- "Pig"
-salmonella[grep("Hogs", salmonella$Isolation.source),9] <- "Pig"
-salmonella[grep("hogs", salmonella$Isolation.source),9] <- "Pig"
-salmonella[grep("Hog", salmonella$Isolation.source),9] <- "Pig"
-salmonella[grep("hog", salmonella$Isolation.source),9] <- "Pig"
-salmonella[grep("PORK", salmonella$Isolation.source),9] <- "Pig"
-
-
-# Other birds 
-salmonella[grep("Turkey", salmonella$Isolation.source),9] <- "Birds (other)"
-salmonella[grep("turkey", salmonella$Isolation.source),9] <- "Birds (other)"
-salmonella[grep("GT", salmonella$Isolation.source),9] <- "Birds (other)"
-salmonella[grep("gallopavo", salmonella$Isolation.source),9] <- "Birds (other)"
-salmonella[grep("duck", salmonella$Isolation.source),9] <- "Birds (other)"
-salmonella[grep("Duck", salmonella$Isolation.source),9] <- "Birds (other)"
-salmonella[grep("avian", salmonella$Isolation.source),9] <- "Birds (other)"
-salmonella[grep("Avian", salmonella$Isolation.source),9] <- "Birds (other)"
-salmonella[grep("seagull", salmonella$Isolation.source),9] <- "Birds (other)"
-salmonella[grep("bird", salmonella$Isolation.source),9] <- "Birds (other)"
-salmonella[grep("Bird", salmonella$Isolation.source),9] <- "Birds (other)"
-salmonella[grep("crane", salmonella$Isolation.source),9] <- "Birds (other)"
-salmonella[grep("Crane", salmonella$Isolation.source),9] <- "Birds (other)"
-salmonella[grep("owl", salmonella$Isolation.source),9] <- "Birds (other)"
-salmonella[grep("Owl", salmonella$Isolation.source),9] <- "Birds (other)"
-salmonella[grep("crow", salmonella$Isolation.source),9] <- "Birds (other)"
-salmonella[grep("Crow", salmonella$Isolation.source),9] <- "Birds (other)"
-salmonella[grep("gull", salmonella$Isolation.source),9] <- "Birds (other)"
-salmonella[grep("Gull", salmonella$Isolation.source),9] <- "Birds (other)"
-salmonella[grep("eagle", salmonella$Isolation.source),9] <- "Birds (other)"
-salmonella[grep("Eagle", salmonella$Isolation.source),9] <- "Birds (other)"
-salmonella[grep("finch", salmonella$Isolation.source),9] <- "Birds (other)"
-salmonella[grep("Finch", salmonella$Isolation.source),9] <- "Birds (other)"
-salmonella[grep("cardinal", salmonella$Isolation.source),9] <- "Birds (other)"
-salmonella[grep("emu", salmonella$Isolation.source),9] <- "Birds (other)"
-salmonella[grep("sparrow", salmonella$Isolation.source),9] <- "Birds (other)"
-salmonella[grep("Acanthis flammea", salmonella$Isolation.source),9] <- "Birds (other)"
-salmonella[grep("crossbill", salmonella$Isolation.source),9] <- "Birds (other)"
-salmonella[grep("siskin", salmonella$Isolation.source),9] <- "Birds (other)"
-salmonella[grep("Leucophaeus pipixcan", salmonella$Isolation.source),9] <- "Birds (other)"
-salmonella[grep("feather", salmonella$Isolation.source),9] <- "Birds (other)"
-salmonella[grep("FEATHERBACK", salmonella$Isolation.source),9] <- "Birds (other)"
-salmonella[grep("ostrich", salmonella$Isolation.source),9] <- "Birds (other)"
-salmonella[grep("quail", salmonella$Isolation.source),9] <- "Birds (other)"
-salmonella[grep("goose", salmonella$Isolation.source),9] <- "Birds (other)"
-salmonella[grep("heron", salmonella$Isolation.source),9] <- "Birds (other)"
-salmonella[grep("egret", salmonella$Isolation.source),9] <- "Birds (other)"
-salmonella[grep("Heron", salmonella$Isolation.source),9] <- "Birds (other)"
-salmonella[grep("Phasianus", salmonella$Isolation.source),9] <- "Birds (other)"
-salmonella[grep("mongoose", salmonella$Isolation.source),9] <- "Birds (other)"
-salmonella[grep("monkey", salmonella$Isolation.source),9] <- "Birds (other)"
-salmonella[grep("Monkey", salmonella$Isolation.source),9] <- "Birds (other)"
-salmonella[grep("moose", salmonella$Isolation.source),9] <- "Birds (other)"
-
-
-# Other animals 
-salmonella[grep("Catfish", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("Reptile", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("reptile", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("Wildlife", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("wildlife", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("fish", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("Fish", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("earthworm", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("Earthworm", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("oyster", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("Oyster", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("gecko", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("Gecko", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("clam", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("Clam", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("squid", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("Squid", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("scallop", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("Scallop", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("horse", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("lamb", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("Lamb", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("crab", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("Crab", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("mouse", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("rodent", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("dragon", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("sheep", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("cat", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("Cat", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("tuna", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("Tuna", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("caprine", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("Caprine", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("Canine", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("Canis", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("canine", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("dog", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("dolphin", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("Dragon", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("prawn", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("elk", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("equine", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("Equine", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("Sus", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("alpaca", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("feline", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("Feline", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("pet", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("squirrel", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("snail", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("tilapia", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("lizard", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("frog", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("barrramundi", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("octopus", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("conch", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("koral", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("eel", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("opossumm", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("golden", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("salmon", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("anchovy", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("kangaroo", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("lobster", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("sand goby", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("sardine", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("scad", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("snapper", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("trout", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("corvina", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("pomfret", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("bass", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("shell", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("rhizome", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("mullet", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("rhizome", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("snakehead", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("croaker", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("mackerel", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("trevally", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("fusilier", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("barb", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("seabream", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("gizzard", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("GIZZARDS", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("GOAT", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("goat", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("rabbit", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("haddock", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("halibut", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("hamster", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("hare", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("Iguana", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("iguana", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("tortise", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("Tortise", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("Alligator", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("alligator", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("Bison", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("taurus", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("Equus", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("Meleagris", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("Odocoileus", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("Ovis", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("Procyon", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("Puma", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("Rattus", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("Serpentes", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("Simalia", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("sm", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("Capra", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("Rhea", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("Mussels", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("snake", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("Lizard", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("llama", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("mamal", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("marine", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("marsupial", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("Marsupial,", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("deer", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("muscle", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("mussel", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("Opossum", salmonella$Isolation.source),9] <- "Other animal"
-salmonella[grep("opossum", salmonella$Isolation.source),9] <- "Other animal"
-
-
-
-# Greens 
-salmonella[grep("Lettuce", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("lettuce", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("cilantro", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("Agricultural", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("agricultural", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("peppercorn", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("agricultural", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("canaloupe", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("cucumber", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("leafy green", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("Leafy green", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("leafy greens", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("Leafy greens", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("Leaf", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("leaf", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("leaves", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("Leaves", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("sage", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("Sage", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("Sage", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("lemon", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("Lemon", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("Corn", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("corn", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("chickpea", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("tomato", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("chard", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("carrot", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("cantaloupes", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("cantaloupe", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("Cantaloupe", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("pepper", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("ginger", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("cabbage", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("fennel", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("spinach", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("kale", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("green", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("spring mixture", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("asparagus", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("Peppers", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("squash", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("jalapeno", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("mango", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("pineapple", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("peas", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("vegetable", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("basil", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("mammey", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("blueberry", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("Galia", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("grape", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("Kernel", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("lime", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("flower", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("melon", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("fruit", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("CACTUS", salmonella$Isolation.source),9] <- "Plants"
-salmonella[grep("sprout", salmonella$Isolation.source),9] <- "Plants"
-
-
-
-
-length(levels(as.factor(salmonella$Isolation.source)))
-
-# Milk 
-salmonella[grep("Dairy", salmonella$Isolation.source),9] <- "Milk"
-salmonella[grep("dairy", salmonella$Isolation.source),9] <- "Milk"
-salmonella[grep("Milk", salmonella$Isolation.source),9] <- "Milk"
-salmonella[grep("milk", salmonella$Isolation.source),9] <- "Milk"
-salmonella[grep("yogurt", salmonella$Isolation.source),9] <- "Milk"
-salmonella[grep("Yougurt", salmonella$Isolation.source),9] <- "Milk"
-salmonella[grep("cheese", salmonella$Isolation.source),9] <- "Milk"
-salmonella[grep("Cheese", salmonella$Isolation.source),9] <- "Milk"
-
-
-length(levels(as.factor(salmonella$Isolation.source)))
-
-# Nuts 
-salmonella[grep("pistachio", salmonella$Isolation.source),9] <- "Nut"
-salmonella[grep("peanut butter", salmonella$Isolation.source),9] <- "Nut"
-salmonella[grep("macadamia nut", salmonella$Isolation.source),9] <- "Nut"
-salmonella[grep("sesame seed", salmonella$Isolation.source),9] <- "Nut"
-salmonella[grep("tree nut", salmonella$Isolation.source),9] <- "Nut"
-salmonella[grep("Tree nut", salmonella$Isolation.source),9] <- "Nut"
-salmonella[grep("seed", salmonella$Isolation.source),9] <- "Nut"
-salmonella[grep("Seed", salmonella$Isolation.source),9] <- "Nut"
-salmonella[grep("seeds", salmonella$Isolation.source),9] <- "Nut"
-salmonella[grep("chaoli", salmonella$Isolation.source),9] <- "Nut"
-salmonella[grep("cashew", salmonella$Isolation.source),9] <- "Nut"
-salmonella[grep("pecan", salmonella$Isolation.source),9] <- "Nut"
-salmonella[grep("nut", salmonella$Isolation.source),9] <- "Nut"
-salmonella[grep("Nut", salmonella$Isolation.source),9] <- "Nut"
-salmonella[grep("peanut", salmonella$Isolation.source),9] <- "Nut"
-
-
-# Food/meat 
-salmonella[grep("carcass", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("chili powder", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("coriander powder", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("frozen shrimp", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("Frozen shrimp", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("meat", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("Meat", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("meats", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("Meats", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("papaya", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("shrimp", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("Shrimp", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("oregano", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("Oregano", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("parsley", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("Parsley", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("Potato", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("potato", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("dessert", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("curry", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("cummin", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("coriander", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("tea", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("cookie", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("Ice Cream", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("ice cream", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("Ice cream", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("cooked", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("coconut", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("coleslaw", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("rice", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("Rice", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("cinnamon", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("Cinnamon", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("Chocolate", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("chocolate", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("chili", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("chia", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("snack", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("chamomile", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("mushroom", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("mushrooms", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("Mushroom", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("celery", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("CARCASS", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("Carcass", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("carcass", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("salami", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("dried", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("Dried", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("dry", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("Dry", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("enchilada", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("broth", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("meal", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("flour", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("fluff", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("Fluff", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("FLUFF", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("Food", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("FOOD", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("food", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("calamari", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("fillet", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("garam", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("garlic", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("gelatin", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("tola", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("fillet", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("guacamole", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("gum", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("ghaleem", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("halwa", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("ham", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("herb", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("spice", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("Spice", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("hummus", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("protein", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("noodle", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("Jambalaya", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("mixture", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("spicy", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("lasagna", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("soup", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("Mayo", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("Mayonnaise", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("mayonnaise", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("meringue", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("cream", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("mexican", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("minced", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("bean", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("Mousse", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("Mung", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("vanilla", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("fillet", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("sauce", salmonella$Isolation.source),9] <- "Food/meat"
-salmonella[grep("onion", salmonella$Isolation.source),9] <- "Food/meat"
-
-
-# Water 
-salmonella[grep("water", salmonella$Isolation.source),9] <- "Water"
-salmonella[grep("Water", salmonella$Isolation.source),9] <- "Water"
-salmonella[grep("River", salmonella$Isolation.source),9] <- "Water"
-salmonella[grep("river", salmonella$Isolation.source),9] <- "Water"
-salmonella[grep("Pond", salmonella$Isolation.source),9] <- "Water"
-salmonella[grep("pond", salmonella$Isolation.source),9] <- "Water"
-salmonella[grep("River", salmonella$Isolation.source),9] <- "Water"
-salmonella[grep("Canal", salmonella$Isolation.source),9] <- "Water"
-salmonella[grep("canal", salmonella$Isolation.source),9] <- "Water"
-salmonella[grep("Dam", salmonella$Isolation.source),9] <- "Water"
-salmonella[grep("dam", salmonella$Isolation.source),9] <- "Water"
-salmonella[grep("sediment", salmonella$Isolation.source),9] <- "Water" # assuming the sediment was from water 
-salmonella[grep("Sediment", salmonella$Isolation.source),9] <- "Water"
-salmonella[grep("Creek", salmonella$Isolation.source),9] <- "Water"
-salmonella[grep("creek", salmonella$Isolation.source),9] <- "Water"
-salmonella[grep("Drainage", salmonella$Isolation.source),9] <- "Water"
-salmonella[grep("estuary", salmonella$Isolation.source),9] <- "Water"
-salmonella[grep("Foam", salmonella$Isolation.source),9] <- "Water"
-salmonella[grep("laguna", salmonella$Isolation.source),9] <- "Water"
-salmonella[grep("lake", salmonella$Isolation.source),9] <- "Water"
-
-
-# Human, presumed 
-salmonella[grep("caecum", salmonella$Isolation.source),9] <- "Human" # https://www.britannica.com/science/cecum 
-salmonella[grep("cloacal swab", salmonella$Isolation.source),9] <- "Human" # https://www.childrenshospital.org/conditions/cloacal-deformities#:~:text=What%20is%20a%20cloacal%20deformity,the%20surface%20of%20the%20skin.
-salmonella[grep("human", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("Human", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("intestine", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("liver", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("urine", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("person", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("Person", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("Colon", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("colon", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("COLON", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("spleen", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("child", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("Child", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("cecum", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("Cecum", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("Cecal", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("cecal", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("digestive", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("ear", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("Elderly", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("Family", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("family", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("foot", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("gall bladder", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("Gallbladder", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("gallbladder", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("Gastric", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("Genital", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("GI", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("Granuloma", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("Gut", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("gut", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("hand", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("HEARTS", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("Hip", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("Homo", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("Hommo", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("ileum", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("Ileum", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("Internal", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("internal", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("intestinal", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("joint", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("Joint", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("kidney", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("knee", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("legs", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("LEGS", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("Liver", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("lung", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("lymph node", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("Lymph Node", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("Lymphnode", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("meconium", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("Mouth", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("nasal", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("Nasal", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("Nasopharyngeal", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("Neck", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("skin", salmonella$Isolation.source),9] <- "Human"
-salmonella[grep("newborn", salmonella$Isolation.source),9] <- "Human"
-
-
-# Farms 
-salmonella[grep("farm", salmonella$Isolation.source),9] <- "Farm/salughterhouse"
-salmonella[grep("Farm", salmonella$Isolation.source),9] <- "Farm/salughterhouse"
-salmonella[grep("Slaughterhouse", salmonella$Isolation.source),9] <- "Farm/salughterhouse"
-salmonella[grep("Feed", salmonella$Isolation.source),9] <- "Farm/salughterhouse"
-salmonella[grep("feed", salmonella$Isolation.source),9] <- "Farm/salughterhouse"
-salmonella[grep("field", salmonella$Isolation.source),9] <- "Farm/salughterhouse"
-salmonella[grep("manure", salmonella$Isolation.source),9] <- "Farm/salughterhouse"
-
-
-# General clinical
-salmonella[grep("clinical", salmonella$Isolation.source),9] <- "Clinical"
-salmonella[grep("Clinical", salmonella$Isolation.source),9] <- "Clinical"
-salmonella[grep("culture", salmonella$Isolation.source),9] <- "Clinical"
-salmonella[grep("Culture", salmonella$Isolation.source),9] <- "Clinical"
-salmonella[grep("patient", salmonella$Isolation.source),9] <- "Clinical"
-salmonella[grep("clinic", salmonella$Isolation.source),9] <- "Clinical"
-salmonella[grep("hospital", salmonella$Isolation.source),9] <- "Clinical"
-salmonella[grep("Hybrid", salmonella$Isolation.source),9] <- "Clinical"
-salmonella[grep("Isolated", salmonella$Isolation.source),9] <- "Clinical"
-salmonella[grep("lab", salmonella$Isolation.source),9] <- "Clinical"
-salmonella[grep("Lab", salmonella$Isolation.source),9] <- "Clinical"
-salmonella[grep("Laboratory", salmonella$Isolation.source),9] <- "Clinical"
-salmonella[grep("laboratory", salmonella$Isolation.source),9] <- "Clinical"
-salmonella[grep("strain", salmonella$Isolation.source),9] <- "Clinical"
-salmonella[grep("assembly", salmonella$Isolation.source),9] <- "Clinical"
-
-
-
-# Enviornment
-salmonella[grep("Enviornment", salmonella$Isolation.source),9] <- "Enviornment"
-salmonella[grep("enviornment", salmonella$Isolation.source),9] <- "Enviornment"
-salmonella[grep("Enviornmental", salmonella$Isolation.source),9] <- "Enviornment"
-salmonella[grep("enviornmental", salmonella$Isolation.source),9] <- "Enviornment"
-salmonella[grep("swab", salmonella$Isolation.source),9] <- "Enviornment"
-salmonella[grep("ENVIR", salmonella$Isolation.source),9] <- "Enviornment"
-salmonella[grep("Envirnoment", salmonella$Isolation.source),9] <- "Enviornment"
-salmonella[grep("Environemnt", salmonella$Isolation.source),9] <- "Enviornment"
-salmonella[grep("environment", salmonella$Isolation.source),9] <- "Enviornment"
-salmonella[grep("Environment", salmonella$Isolation.source),9] <- "Enviornment"
-salmonella[grep("Environment", salmonella$Isolation.source),9] <- "Enviornment"
-salmonella[grep("Environmental", salmonella$Isolation.source),9] <- "Enviornment"
-salmonella[grep("environmental", salmonella$Isolation.source),9] <- "Enviornment"
-salmonella[grep("forest", salmonella$Isolation.source),9] <- "Enviornment"
-
-
-
-# Other/not collected 
-salmonella[grep("not collected", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("Not collected", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("Not Collected", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("not Collected", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("Other", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("other", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("not known", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("Not known", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("Not Known", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("not Known", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("shoe", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("Doors", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("doors", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("door", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("Door", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("DRAGSW", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("Drums", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("Dust", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("dust", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("Duvet", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("eared", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("embryo", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("pool", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("Factory", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("fan", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("fenugreek", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("Fertilizer", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("fertilizer", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("supplement", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("floor", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("freezer", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("sadao", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("FSWAB", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("Gauze", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("anaerobes", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("granary", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("GROUND", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("ground", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("Hatchery", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("Havana", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("hay", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("hide", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("iceberg", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("incubator", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("Index", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("INTCNTL", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("ISOLATE", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("Jeonju", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("Kali", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("kennel", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("layer", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("least", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("lesser", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("litter", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("Litter", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("LITTER", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("PLANT", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("market", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("market", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("mace", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("Limosa", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("marjoram", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("Melagris", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("melagris", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("Mesenteric", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("moringa", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("Moringa", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("mrigal", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("not", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("Not", salmonella$Isolation.source),9] <- "Other/Not collected"
-salmonella[grep("Ocean", salmonella$Isolation.source),9] <- "Other/Not collected"
-
-
-
-
-
-#salmonella[grep("Animal Feed", salmonella$Isolation.source),9] <- "Animal feed"
-
-# Raw/ food borne stuff 
-#salmonella[grep("Raw", salmonella$Isolation.source), 9] <- "Raw"
-#salmonella[grep("raw", salmonella$Isolation.source), 9] <- "raw"
-
-#salmonella[grep()]
-
-
-# abscess 
-salmonella[grep("abscess", salmonella$Isolation.source), 9] <- "abscess"
-salmonella[grep("Abscess", salmonella$Isolation.source), 9] <- "abscess"
-salmonella[grep("abcess", salmonella$Isolation.source), 9] <- "abscess"
-salmonella[grep("Abcess", salmonella$Isolation.source), 9] <- "abscess"
-
-# chicken 
-
-
-
-length(levels(as.factor(salmonella$Isolation.source.category)))
-
-```
-
-
-
-
-```{r}
-## Lets start doing some eda with some of the categories we have defiend 
-lots <- as.data.frame(table(salmonella$Isolation.source.category)) 
-x <- lots %>% filter(Freq > 1000)
-x1 <- as.vector(x[,1])
-sal_subset <- salmonella %>% 
-              filter(Isolation.source.category %in% x1)
-
-
-plotdata <- sal_subset %>% group_by(year, Isolation.source.category) %>% summarize(num = n())
-
-ggplot(data = plotdata, aes(x = year, y = num, color = Isolation.source.category)) + 
-  geom_line() + 
-  geom_point()
-```
-
-We assume that if there is a missing value in the min difference column this will mean that there is no relation to other strains. 
-
-```{r}
-# Lets look at Min differences
-
-Missing_min_same <- length(which(is.na(sal_subset$Min.same)))/nrow(sal_subset)
-close_min_same <- length(which(sal_subset$Min.same <= 7))/nrow(sal_subset)
-far_min_same <- length(which(sal_subset$Min.same > 7))/nrow(sal_subset)
-
-min_same_salmonella <- data.frame()
-min_same_salmonella[1,1] <- "Missing"
-min_same_salmonella[1,2] <- round(Missing_min_same,2)
-min_same_salmonella[2,1] <- "Closely related (within 7 SNPs)"
-min_same_salmonella[2,2] <- round(close_min_same,2)
-min_same_salmonella[3,1] <- "Not closely related"
-min_same_salmonella[3,2] <- round(far_min_same,2)
-names(min_same_salmonella) <- c("Minimum Same", "Percent")
-
-min_same_salmonella %>% kbl()
-
-```
-
-We observe that the min same is the same. Are there temporal trends by region? We will seek to see if any given 
-
-```{r}
-# Month and year 
-
-sal_subset$week <- week(sal_subset$Create.date)
-x <- sal_subset %>%  group_by(year, week) %>% 
-                summarize(meaa = mean(Min.same, na.rm = T), 
-                          num_mn = sum(is.na(Min.same)), 
-                          num = n())  %>% 
-                ungroup() %>% 
-                arrange(year, week)
-      
-
-x <- as.data.frame(x)   
-
-x$try <- 0
-
-x <- x %>% mutate(weeks =  case_when(year == 2013 ~ week, 
-                                year == 2014 ~ week+52, 
-                                year == 2015 ~ week+(2*52), 
-                                year == 2016 ~ week+(3*52),
-                                year == 2017 ~ week+(4*52),
-                                year == 2018 ~ week+(5*52),
-                                year == 2019 ~ week+(6*52),
-                                year == 2020 ~ week+(7*52),
-                                year == 2021 ~ week+(8*52),
-                                year == 2022 ~ week+(9*52)))
-
-x <- as.data.frame(x)
-for(i in 2:nrow(x)){
-  x$try[i] <- x$weeks[i]-x$weeks[i-1]
-}
-
-# We want to look at outbreaks close in time
-x %>% filter(try < 2 & meaa  < 7)
-
-
-```
-
-
-
-## Collection date cleaning 
-
-We note that there is an inherent missingness in the Collection date, but there is no missingness in the Create.date variable, since there is no missingness in Create.Date we will use this as a means of imputing the missing data in the collection date. 
-```{r}
-
-# Impute the missing observations for Collection date 
-salmonella$Date <- ifelse(is.na(salmonella$Collection.date), salmonella$Create.date, salmonella$Collection.date)
-
-sanity_check_date <- apply(salmonella,2,is.na)
-sanity_chck_date_missing <- apply(x,2, sum)
-
-# Now that we have the date imputed we can look at time trends  
-salmonella$Date <- as.Date(salmonella$Date)
-
+# E. Coli
+Num_per_month_ecoli <- ecoli %>%  
+                     group_by(year, month) %>% 
+                     summarize(num =  n())
+Num_per_month_ecoli <- Num_per_month_ecoli %>% filter(!is.na(month))
+#Num_per_month_ecoli$month <- factor(Num_per_month_ecoli$month, levels = c("Jan", "Feb", 
+     #                                                                     "Mar", "Apr", "May", 
+  #                                                                        "Jun", "Jul", "Aug", 
+     #                                                                     "Sep", "Oct", 
+     #                                                                     "Nov", "Dec"))
+ggplot(data = Num_per_month_ecoli, aes(x = as.numeric(month), y = num)) + 
+  geom_point(aes(color = as.factor(year))) + 
+  scale_x_continuous(breaks=seq(1,12,1), labels=c("Jan", "Feb", 
+                                                  "Mar", "Apr", "May", 
+                                                  "Jun", "Jul", "Aug", 
+                                                 "Sep", "Oct", 
+                                                 "Nov", "Dec"))+
+  geom_smooth()
+  
+
+# Camplyobacter
+Num_per_month_camp <- campylobacter %>%  
+                     group_by(year, month) %>% 
+                     summarize(num =  n())
+Num_per_month_camp <- Num_per_month_camp %>% filter(!is.na(month))
+#Num_per_month_ecoli$month <- factor(Num_per_month_ecoli$month, levels = c("Jan", "Feb", 
+     #                                                                     "Mar", "Apr", "May", 
+  #                                                                        "Jun", "Jul", "Aug", 
+     #                                                                     "Sep", "Oct", 
+     #                                                                     "Nov", "Dec"))
+ggplot(data = Num_per_month_camp, aes(x = as.numeric(month), y = num)) + 
+  geom_point(aes(color = as.factor(year))) + 
+  scale_x_continuous(breaks=seq(1,12,1), labels=c("Jan", "Feb", 
+                                                  "Mar", "Apr", "May", 
+                                                  "Jun", "Jul", "Aug", 
+                                                 "Sep", "Oct", 
+                                                 "Nov", "Dec"))+
+  geom_smooth()
+  
 
 
 
 
 ```
 
+From Figure 2 we note that there are more cases of Salmonella than any other food borne illnesses in any given year. The number of cases of campylobacter is the smallest at onset, but the number of cases of camylobacter passes E.Coli in 2016 and remains larger than the number of E. Coli cases for remaining years. We observe that for all of the illnesses that the number of cases decrease in 2020, which we note is the year the Covid-19 pandemic started, though we cannot confirm a causal relaltionship with the provided data we can assume that this is due to less reporting or less going out to eat and getting exposure to food that could make people ill, though this is  conjecture and we cannot further comment on this. 
 
-
-```{r}
-# We can change this to the appropriate date
-
-# We want to look at the data 
-
-
-```
+We also examine and note the trends in seasonality 
 
 
 
 ```{r}
+
 # We can also look to trends over regions in the US 
 
-salmonella$Location
 
+## Define the regions 
 salmonella <- salmonella %>% mutate(region = case_when(Location %in% c("ME", "VT", "NH", 
                                                                        "MA", "CT", "RI", 
                                                                        "NY", "NJ", "PA") ~ "Northeast", 
@@ -1101,23 +433,208 @@ salmonella <- salmonella %>% mutate(region = case_when(Location %in% c("ME", "VT
                                                        Location == "USA" ~ "USA, General"))
 
 
-regions <- salmonella %>% filter(region != "USA, General")
-regions$year <- year(as.Date(regions$Create.date))
+ecoli <- ecoli %>% mutate(region = case_when(Location %in% c("ME", "VT", "NH", 
+                                                                       "MA", "CT", "RI", 
+                                                                       "NY", "NJ", "PA") ~ "Northeast", 
+                                                       Location %in% c("DE", "MD", "DC", 
+                                                                       "WV", "VA", "NC", 
+                                                                       "SC", "GA", "FL", 
+                                                                       "AL", "MS", "LA", 
+                                                                       "TX", "OK", "AR", 
+                                                                       "TN", "KY") ~ "South", 
+                                                       Location %in% c("OH", "MI", "IN", 
+                                                                       "IL", "WI", "MN", 
+                                                                       "IA", "MO", "KS", 
+                                                                       "NE", "SD", "ND") ~ "Midwest", 
+                                                       Location %in% c("NM", "CO", "WY", 
+                                                                       "MT", "ID", "UT", 
+                                                                       "AZ", "NV", "WA", 
+                                                                       "OR", "CA", "HI", 
+                                                                       "AK") ~ "West", 
+                                                       Location == "USA" ~ "USA, General"))
 
-cases_by_region <- regions %>% group_by(region, year) %>% 
+campylobacter <- campylobacter %>% mutate(region = case_when(Location %in% c("ME", "VT", "NH", 
+                                                                       "MA", "CT", "RI", 
+                                                                       "NY", "NJ", "PA") ~ "Northeast", 
+                                                       Location %in% c("DE", "MD", "DC", 
+                                                                       "WV", "VA", "NC", 
+                                                                       "SC", "GA", "FL", 
+                                                                       "AL", "MS", "LA", 
+                                                                       "TX", "OK", "AR", 
+                                                                       "TN", "KY") ~ "South", 
+                                                       Location %in% c("OH", "MI", "IN", 
+                                                                       "IL", "WI", "MN", 
+                                                                       "IA", "MO", "KS", 
+                                                                       "NE", "SD", "ND") ~ "Midwest", 
+                                                       Location %in% c("NM", "CO", "WY", 
+                                                                       "MT", "ID", "UT", 
+                                                                       "AZ", "NV", "WA", 
+                                                                       "OR", "CA", "HI", 
+                                                                       "AK") ~ "West", 
+                                                       Location == "USA" ~ "USA, General"))
+
+
+# Salmomella
+
+regions_sal <- salmonella %>% filter(region != "USA, General")
+cases_by_region_sal <- regions_sal %>% group_by(region, year) %>% 
                                summarize(num = n())
 
-ggplot(data = cases_by_region, aes(x = year, y = num, color = region)) + 
+ggplot(data = cases_by_region_sal, aes(x = year, y = num, color = region)) + 
+  geom_line() + 
+  geom_point()
+
+# E. Coli
+
+regions_ecoli <- ecoli %>% filter(region != "USA, General")
+cases_by_region_ecoli <- regions_ecoli %>% group_by(region, year) %>% 
+                                                    summarize(num = n())
+
+ggplot(data = cases_by_region_ecoli, aes(x = year, y = num, color = region)) + 
   geom_line() + 
   geom_point()
 
 
+# campylobacter
+
+regions_camp <- campylobacter %>% filter(region != "USA, General")
+cases_by_region_camp <- regions_camp %>% group_by(region, year) %>% 
+                               summarize(num = n())
+
+ggplot(data = cases_by_region_camp, aes(x = year, y = num, color = region)) + 
+  geom_line() + 
+  geom_point()
 ```
+
+
+
+
+
+
 
 
 ```{r}
+## Lets start doing some eda with some of the categories we have defiend 
+plotdata_sal <- salmonella %>% group_by(year, Isolation.source.category) %>% summarize(num = n())
 
-salmonella %>% group_by(Strain) %>% summarize(num = n()) %>% filter(Strain != "" & num >1) 
+ggplot(data = plotdata_sal, aes(x = year, y = num, color = Isolation.source.category)) + 
+  geom_line() + 
+  geom_point()
+
+
+# Ecoli 
+plotdata_ecoli <- ecoli %>% group_by(year, Isolation.source.category) %>% summarize(num = n())
+
+ggplot(data = plotdata_ecoli, aes(x = year, y = num, color = Isolation.source.category)) + 
+  geom_line() + 
+  geom_point()
+
+# Camp
+plotdata_camp <- campylobacter %>% group_by(year, Isolation.source.category) %>% summarize(num = n())
+
+ggplot(data = plotdata_camp, aes(x = year, y = num, color = Isolation.source.category)) + 
+  geom_line() + 
+  geom_point()
+```
+
+We assume that if there is a missing value in the min difference column this will mean that there is no relation to other strains. 
+
+```{r}
+# Lets look at Min differences
+
+
+# Salmonella 
+Missing_min_same <- length(which(is.na(salmonella$Min.same)))/nrow(salmonella)
+close_min_same <- length(which(salmonella$Min.same <= 7))/nrow(salmonella)
+far_min_same <- length(which(salmonella$Min.same > 7))/nrow(salmonella)
+
+min_same_salmonella <- data.frame()
+min_same_salmonella[1,1] <- "Missing"
+min_same_salmonella[1,2] <- round(Missing_min_same,2)
+min_same_salmonella[2,1] <- "Closely related (within 7 SNPs)"
+min_same_salmonella[2,2] <- round(close_min_same,2)
+min_same_salmonella[3,1] <- "Not closely related"
+min_same_salmonella[3,2] <- round(far_min_same,2)
+names(min_same_salmonella) <- c("Minimum Same", "Percent")
+
+min_same_salmonella %>% kbl()
+
+#
+Missing_min_same <- length(which(is.na(ecoli$Min.same)))/nrow(ecoli)
+close_min_same <- length(which(ecoli$Min.same <= 7))/nrow(ecoli)
+far_min_same <- length(which(ecoli$Min.same > 7))/nrow(ecoli)
+
+min_same_ecoli <- data.frame()
+min_same_ecoli[1,1] <- "Missing"
+min_same_ecoli[1,2] <- round(Missing_min_same,2)
+min_same_ecoli[2,1] <- "Closely related (within 7 SNPs)"
+min_same_ecoli[2,2] <- round(close_min_same,2)
+min_same_ecoli[3,1] <- "Not closely related"
+min_same_ecoli[3,2] <- round(far_min_same,2)
+names(min_same_ecoli) <- c("Minimum Same", "Percent")
+
+min_same_ecoli %>% kbl()
+
+#
+Missing_min_same <- length(which(is.na(campylobacter$Min.same)))/nrow(campylobacter)
+close_min_same <- length(which(campylobacter$Min.same <= 7))/nrow(campylobacter)
+far_min_same <- length(which(campylobacter$Min.same > 7))/nrow(campylobacter)
+
+min_same_campylobacter <- data.frame()
+min_same_campylobacter[1,1] <- "Missing"
+min_same_campylobacter[1,2] <- round(Missing_min_same,2)
+min_same_campylobacter[2,1] <- "Closely related (within 7 SNPs)"
+min_same_campylobacter[2,2] <- round(close_min_same,2)
+min_same_campylobacter[3,1] <- "Not closely related"
+min_same_campylobacter[3,2] <- round(far_min_same,2)
+names(min_same_campylobacter) <- c("Minimum Same", "Percent")
+
+min_same_campylobacter %>% kbl()
 
 ```
 
+We observe that the min same is the same. Are there temporal trends by region? We will seek to see if any given 
+
+```{r}
+# Month and year 
+
+#sal_subset$week <- week(sal_subset$Create.date)
+#x <- sal_subset %>%  group_by(year, week) %>% 
+ #               summarize(meaa = mean(Min.same, na.rm = T), 
+  #                        num_mn = sum(is.na(Min.same)), 
+   #                       num = n())  %>% 
+    #            ungroup() %>% 
+     #           arrange(year, week)
+      
+
+#x <- as.data.frame(x)   
+
+#x$try <- 0
+
+#x <- x %>% mutate(weeks =  case_when(year == 2013 ~ week, 
+ #                               year == 2014 ~ week+52, 
+  #                              year == 2015 ~ week+(2*52), 
+   #                             year == 2016 ~ week+(3*52),
+    #                            year == 2017 ~ week+(4*52),
+     #                           year == 2018 ~ week+(5*52),
+     #                           year == 2019 ~ week+(6*52),
+      #                          year == 2020 ~ week+(7*52),
+       #                         year == 2021 ~ week+(8*52),
+        #                        year == 2022 ~ week+(9*52)))
+
+#x <- as.data.frame(x)
+#for(i in 2:nrow(x)){
+ # x$try[i] <- x$weeks[i]-x$weeks[i-1]
+#}
+
+# We want to look at outbreaks close in time
+#x %>% filter(try < 2 & meaa  < 7)
+
+
+```
+
+
+
+```{r ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}
+
+```
