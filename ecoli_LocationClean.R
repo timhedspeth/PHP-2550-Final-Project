@@ -1,3 +1,9 @@
+## This is a code for PHP 2550 at Brown University SPH, the purpose is to 
+## clean location that have different format e.g some are two letters state
+## abbreviation, some are full state names or some are the big cities name
+## without the state name. To account for this heterogenity, we preprocess
+## the data here.
+
 library(data.table)
 
 #load the data
@@ -7,6 +13,7 @@ dim(ecoli_dat) #111203     21
 #extract only US cases
 ecoli_us <- ecoli_dat[ecoli_dat$Location %like% "US", ]
 dim(ecoli_us) # 34805    21
+length(unique(ecoli_us$Location)) # 291    
 
 #clean for location
 ecoli_us$Location[ecoli_us$Location %like% "USA:NC"== TRUE] <- "NC"
@@ -219,5 +226,5 @@ ecoli_us$Location[ecoli_us$Location %like% "Lafayette" == TRUE] <- "LA"
 ecoli_us$Location[ecoli_us$Location %like% "Cambridge" == TRUE] <- "MA"
 ecoli_us$Location[ecoli_us$Location %like% "Moscow" == TRUE] <- "ID"
 
-
+length(unique(ecoli_us$Location)) # 56    
 unique(sal_us$Location)
