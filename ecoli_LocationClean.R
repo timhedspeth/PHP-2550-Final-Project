@@ -8,7 +8,7 @@ library(data.table)
 
 #load the data
 ecoli_dat <- read.csv("E.coli_2013to2022.csv")
-dim(ecoli_dat) #111203     21
+dim(ecoli_dat) # 111203     21
 
 #extract only US cases
 ecoli_us <- ecoli_dat[ecoli_dat$Location %like% "US", ]
