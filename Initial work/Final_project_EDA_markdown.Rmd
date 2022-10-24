@@ -11,12 +11,7 @@ knitr::opts_chunk$set(echo = FALSE)
 ```
 
 
-# Introduction
-## Motivating question 
-
-## Literature review 
-
-
+# Please note that the text in this file is not up to date, but the code is what we use for the EDA for our project, to just see the code please see the EDA R file 
 
 
 # Data Tools 
@@ -35,6 +30,7 @@ library(ggpubr) # Arrange GGplots
 ## Data ## 
 #~~~~~~~~#
 
+# Set the working directory and read in the preprocessed data 
 setwd("~/Desktop/Semester_3/Practical/Final")
 salmonella <- read.csv("final_salmonella_date.csv")
 ecoli <- read.csv("final_ecoli_date.csv")
@@ -76,7 +72,7 @@ ecoli[ecoli == ""] <- NA
 campylobacter[campylobacter == ""] <- NA 
 
 
-## Missingness by column
+## Missingness by column ## 
 
 # Salmonella
 na_by_cols_sal <- as.data.frame(apply(salmonella,2, is.na))
@@ -98,7 +94,7 @@ Missing_by_col <- cbind(sum_na_by_col_sal, sum_na_by_col_ecoli, sum_na_by_col_ca
 names(Missing_by_col) <- c("x", "y", "z") # Create a dummy variable for filtering 
 Missing_by_col <- Missing_by_col %>% filter(x != 0 & 
                                             y != 0 & 
-                                            z != 0   )
+                                            z != 0   ) # Filter out all variables with no missing data 
 names(Missing_by_col) <- c("Salmonella", "E. Coli", "Campylobacter")
 
 # Print the data frame 
@@ -134,7 +130,7 @@ na_by_row_camp <- as.data.frame(apply(campylobacter,1, is.na))
 sum_na_by_row_camp <- apply(na_by_row_camp,2,sum)/nrow(na_by_row_camp)
 campylobacter_missing <- as.data.frame(sum_na_by_row_camp)
 
-# Make a plot of missingness by 
+# Make a plot of missingness by observation, This did not make it into the final EDA 
 ggplot(data = salmonella_missing, aes(x = sum_na_by_row_sal, color = "sum_na_by_row_sal")) + 
   geom_density(alpha = .9) + 
   geom_density(data = ecoli_missing, aes(x = sum_na_by_row_ecoli,
@@ -167,46 +163,6 @@ Prior to proceeding to further analysis we will further discuss the variables av
 
 
 
-```{r,message=FALSE, warning=FALSE}
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~#
-## Baseline understanding ## 
-#~~~~~~~~~~~~~~~~~~~~~~~~~~#
-
-# We note that some of the variables may not be that informative to our analysis 
-# so we explore to see if the columns tell us anything. This will allow for us 
-# to determine which variables to include in this analysis 
-
-
-## X.Organism.group
-
-sal_group <- levels(as.factor(salmonella$X.Organism.group))
-ecoli_grop <- levels(as.factor(ecoli$X.Organism.group))
-camp_group <-  levels(as.factor(campylobacter$X.Organism.group))
-
-## Strain 
-sal_strain <- length(levels(as.factor(salmonella$Strain)))
-ecoli_strain <- length(levels(as.factor(ecoli$Strain)))
-camp_strain <- length(levels(as.factor(campylobacter$Strain)))
-
-## Isolate identifiers 
-
-# This is more complex than others 
-
-
-## 
-
-#length(levels(as.factor(salmonella$Serovar)))
-
-
-#levels(as.factor(salmonella$Outbreak))
-
-
-
-
-```
-
-
 
 
 
@@ -219,7 +175,7 @@ Given that we are interested in outbreaks we find it most pertinent to first und
 
 ```{r,message=FALSE, warning=FALSE}
 
-# Let us consider data by year
+# Let us consider data by year in general 
 
 
 
@@ -239,7 +195,7 @@ Num_per_year_campylobacter <- campylobacter %>%
                               summarize(num = n())
 
 # Lets look at the trend over time, and 
-ggplot(data = Num_per_year_salmonella, aes(x = year, y = num, color = "Salmonella")) +
+figure1 <- ggplot(data = Num_per_year_salmonella, aes(x = year, y = num, color = "Salmonella")) +
   geom_point() + 
   geom_line() +
   # E coli 
@@ -254,6 +210,10 @@ ggplot(data = Num_per_year_salmonella, aes(x = year, y = num, color = "Salmonell
        y = "Number of cases")  + 
   scale_color_discrete(name = "Illness")
 
+# Print the figure out 
+annotate_figure(figure1, 
+                 bottom = text_grob("Figure 1: Number of cases per year, all illnesses", color = "black",   hjust = 1, x = 1, face = "italic", size = 10),)
+
 ```
 
 From Figure 2 we note that there are more cases of Salmonella than any other food borne illnesses in any given year. The number of cases of campylobacter is the smallest at onset, but the number of cases of camylobacter passes E.Coli in 2016 and remains larger than the number of E. Coli cases for remaining years. We observe that for all of the illnesses that the number of cases decrease in 2020, which we note is the year the Covid-19 pandemic started, though we cannot confirm a causal relationship with the provided data we can assume that this is due to less reporting or less going out to eat and getting exposure to food that could make people ill, though this is  conjecture and we cannot further comment on this. 
@@ -261,12 +221,18 @@ From Figure 2 we note that there are more cases of Salmonella than any other foo
 
 
 ```{r,message=FALSE, warning=FALSE}
-# Number of cases per month for salmonella 
+
+## Monthly cases over all years ## 
+
+# Salmonella 
+
+# Cases per month 
 Num_per_month_sal <- salmonella %>%  
                      group_by(year, month) %>% 
                      summarize(num =  n())
 Num_per_month_sal <- Num_per_month_sal %>% filter(!is.na(month))
 
+# Plot the number of cases per month 
 plot_by_month_sal <- ggplot(data = Num_per_month_sal, aes(x = as.numeric(month), y = num)) + 
                       geom_point(aes(color = as.factor(year))) + 
                       scale_x_continuous(breaks=seq(1,12,1), labels=c("Jan", "Feb", 
@@ -288,6 +254,7 @@ Num_per_month_ecoli <- ecoli %>%
                      summarize(num =  n())
 Num_per_month_ecoli <- Num_per_month_ecoli %>% filter(!is.na(month))
 
+# Plot the number of cases per month 
 plot_by_month_eco <- ggplot(data = Num_per_month_sal, aes(x = as.numeric(month), y = num)) + 
                       geom_point(aes(color = as.factor(year))) + 
                       scale_x_continuous(breaks=seq(1,12,1), labels=c("Ja", "Fe", 
@@ -310,6 +277,7 @@ Num_per_month_camp <- campylobacter %>%
                      summarize(num =  n())
 Num_per_month_camp <- Num_per_month_camp %>% filter(!is.na(month))
 
+# Plot 
 plot_by_month_cal <- ggplot(data = Num_per_month_camp, aes(x = as.numeric(month), y = num)) + 
                       geom_point(aes(color = as.factor(year))) + 
                       scale_x_continuous(breaks=seq(1,12,1), labels=c("Jan", "Feb", 
@@ -319,17 +287,16 @@ plot_by_month_cal <- ggplot(data = Num_per_month_camp, aes(x = as.numeric(month)
                                                  "Nov", "Dec"))+
                       geom_smooth() + 
                       labs(title= "Camplyobacter", 
-                           x = "", 
+                           x = "Month", 
                            y = "Number of cases")  + 
                       scale_color_discrete(name = "Year")
   
 
-# Arrange the plots 
+# Arrange the plots and annotate them
 figure2 <- ggarrange(plot_by_month_sal, plot_by_month_eco, nrow =2 )
-annotate_figure(figure2, 
-                 bottom = text_grob("Figure X: Number of cases per month", color = "black",   hjust = 1, x = 1, face = "italic", size = 10),)
+figure2 
 annotate_figure(plot_by_month_cal, 
-                 bottom = text_grob("Figure X: Number of cases per month", color = "black",   hjust = 1, x = 1, face = "italic", size = 10),)
+                 bottom = text_grob("Figure 2: Number of cases per month, by Illness type", color = "black",   hjust = 1, x = 1, face = "italic", size = 10),)
 
 
 
@@ -343,7 +310,8 @@ We further expand upon our analysis of number of cases over by looking at the nu
 # We can also look to trends over regions in the US 
 
 
-## Define the regions 
+## Define the regions in all the data sets 
+
 salmonella <- salmonella %>% mutate(region = case_when(Location %in% c("ME", "VT", "NH", 
                                                                        "MA", "CT", "RI", 
                                                                        "NY", "NJ", "PA", 
@@ -417,24 +385,39 @@ campylobacter <- campylobacter %>% mutate(region = case_when(Location %in% c("ME
                                                                        "Western Region") ~ "West", 
                                                        Location %in% c("USA", "PR", "GU") ~ "USA, General"))
 
-# Salmomella
+# Now we will try to look at the proportion of cases in each region in each  year
 
-cases_by_region_sal <- salmonella %>% filter(!is.na(year)) %>% group_by(region, year) %>% 
-                            summarize(num = n()) %>% ungroup() %>%  group_by(year) %>% summarize(region = region, percent = round(num/sum(num),2)) %>% pivot_wider(names_from = region, values_from = percent) 
+# Salmonella
+cases_by_region_sal <- salmonella %>% filter(!is.na(year)) %>% 
+                                      group_by(region, year) %>% 
+                                      summarize(num = n()) %>% 
+                                      ungroup() %>%  
+                                      group_by(year) %>%
+                                      summarize(region = region, percent = round(num/sum(num),2)) %>%
+                                      pivot_wider(names_from = region, values_from = percent) 
 
 
 
 # E. Coli
 
-cases_by_region_ecoli <- ecoli %>% filter(!is.na(year)) %>% group_by(region, year) %>% 
-                            summarize(num = n()) %>% ungroup() %>%  group_by(year) %>% summarize(region = region, percent = round(num/sum(num),2)) %>% pivot_wider(names_from = region, values_from = percent) 
+cases_by_region_ecoli <- ecoli %>% filter(!is.na(year)) %>% 
+                                   group_by(region, year) %>% 
+                                   summarize(num = n()) %>% 
+                                   ungroup() %>%  
+                                   group_by(year) %>% 
+                                   summarize(region = region, percent = round(num/sum(num),2)) %>% 
+                                   pivot_wider(names_from = region, values_from = percent) 
 
 
 
 # campylobacter
 
-cases_by_region_camp <- campylobacter %>% filter(!is.na(year)) %>% group_by(region, year) %>% 
-                            summarize(num = n()) %>% ungroup() %>%  group_by(year) %>% summarize(region = region, percent = round(num/sum(num),2)) %>% pivot_wider(names_from = region, values_from = percent) 
+cases_by_region_camp <- campylobacter %>% filter(!is.na(year)) %>% 
+                                          group_by(region, year) %>% 
+                                          summarize(num = n()) %>% 
+                                          ungroup() %>%  
+                                          group_by(year) %>% 
+                                          summarize(region = region, percent = round(num/sum(num),2)) %>%                                                              pivot_wider(names_from = region, values_from = percent) 
 
 ## Get the data into a table 
 cases_region <- as.data.frame(rbind(cases_by_region_sal, cases_by_region_ecoli, cases_by_region_camp))
@@ -444,10 +427,12 @@ cases_region[31, 1] <- "Salomella"
 cases_region[32, 1] <- "E. Coli"
 cases_region[33, 1] <- "Campylobacter"
 
+# Rearrange the data frame 
 cases_region <- cases_region[c(31,1:10,32,11:20,33,21:30), c(1,5,2,3,4,6)]
 
+# Print the data to a kable table 
 cases_region %>% 
-  kbl(caption = "Percent of each years total cases by region of US", booktabs=T,    escape=F, align = "c") %>%
+  kbl(caption = "Percent of each years total cases by region of US by Illness", booktabs=T,    escape=F, align = "c") %>%
   kable_styling(full_width = FALSE, latex_options = c('hold_position'))
 
 ```
@@ -460,63 +445,85 @@ From table X above we note that for all the illnesses that the percent of total 
 
 ## Sources of outbreaks
 ```{r,message=FALSE, warning=FALSE}
-## Lets start doing some eda with some of the categories we have defiend 
-plotdata_sal <- salmonella %>% group_by(year, Isolation.source.category) %>% summarize(num = n())
 
-plot7 <- ggplot(data = plotdata_sal, aes(x = year, y = num, color = Isolation.source.category)) + 
+## We now want to look at our Isolation sources,  for each of the Illnesses by year 
+
+# Salmonella # 
+
+# Get the data for the data 
+plotdata_sal <- salmonella %>% group_by(year, Isolation.source.category) %>% 
+                               summarize(num = n())
+
+# Create a plot 
+plot5 <- ggplot(data = plotdata_sal, aes(x = year, y = num, color = Isolation.source.category)) + 
           geom_line() + 
           geom_point() + 
           theme(legend.position = "none") + 
           labs(title= "Salmonella", 
-                           x = "", 
-                           y = "Number of cases")
+                x = "", 
+                y = "Number of cases")
 
 
-# Ecoli 
-plotdata_ecoli <- ecoli %>% group_by(year, Isolation.source.category) %>% summarize(num = n())
+# E. Coli # 
 
-plot8 <- ggplot(data = plotdata_ecoli, aes(x = year, y = num, color = Isolation.source.category)) + 
+# Get the data 
+plotdata_ecoli <- ecoli %>% group_by(year, Isolation.source.category) %>% 
+                            summarize(num = n())
+
+# Plot the data 
+plot6 <- ggplot(data = plotdata_ecoli, aes(x = year, y = num, color = Isolation.source.category)) + 
           geom_line() + 
           geom_point() + 
           theme(legend.position = "none") +
-           labs(title= "E. Coli", 
-                           x = "", 
-                           y = "Number of cases")  + 
-                      scale_color_discrete(name = "Illness source")
+          labs(title= "E. Coli", 
+                 x = "", 
+                 y = "Number of cases")  + 
+          scale_color_discrete(name = "Illness source")
 
-# Camp
-plotdata_camp <- campylobacter %>% group_by(year, Isolation.source.category) %>% summarize(num = n())
 
-plot9 <- ggplot(data = plotdata_camp, aes(x = year, y = num, color = Isolation.source.category)) + 
+# Campylobacter #
+
+# Get the data for the plot 
+plotdata_camp <- campylobacter %>% group_by(year, Isolation.source.category) %>%
+                                   summarize(num = n())
+
+# Create the plot 
+plot7 <- ggplot(data = plotdata_camp, aes(x = year, y = num, color = Isolation.source.category)) + 
           geom_line() + 
           geom_point() +
-          labs(title= "Camplyobacter", 
-                           x = "", 
-                           y = "Number of cases")
+          labs(title= "Campylobacter", 
+                           x = "Year", 
+                           y = "Number of cases") + 
+          scale_color_discrete(name = "Isolation Source")
 
-figure3 <- ggarrange(plot7, plot8, nrow =2)
-annotate_figure(figure3, 
-                 bottom = text_grob("Figure X: Number of cases by Isolation Source", color = "black",   hjust = 1, x = 1, face = "italic", size = 10),)
-
-annotate_figure(plot9, 
-                 bottom = text_grob("Figure X: Number of cases by Isolation Source, Campylobacter", color = "black",   hjust = 1, x = 1, face = "italic", size = 10),)
+# Arrange and annotate the plots 
+figure3 <- ggarrange(plot5, plot6, nrow =2)
+figure3 
+annotate_figure(plot7, 
+                 bottom = text_grob("Figure 3: Number of cases by Isolation Source", color = "black",   hjust = 1, x = 1, face = "italic", size = 10),)
 
 ```
 
 
-We note that looking at the trends over time the Isolation source that generally for all 3 of the illnesses that in later years poultry is one of (if not the biggest) causes of the illnesses we have included. Though we do note that the number of Isolations from humans is quite large for all illnesses as well. Other sources such as produce and pig based sources seem to be relatively low across all 3 illness, which could indicate that in our modeling that we may want to focus on sources that have higher incience for our illnesses over time as it may be easier to capture an outbreak this way. 
+We note that looking at the trends over time the Isolation source that generally for all 3 of the illnesses that in later years poultry is one of (if not the biggest) causes of the illnesses we have included. Though we do note that the number of Isolation from humans is quite large for all illnesses as well. Other sources such as produce and pig based sources seem to be relatively low across all 3 illness, which could indicate that in our modeling that we may want to focus on sources that have higher incidence for our illnesses over time as it may be easier to capture an outbreak this way. 
 
 
 
 ```{r,message=FALSE, warning=FALSE}
-# Lets look at Min differences
+
+# Lets look at Min same as a metric for similarity and defining an outbreak 
+# Generally all of the codes below are to find the percent of missing data, % which 
+# are closely related (within 7 SNPs) and those that are distant 
 
 
-# Salmonella 
+##  Salmonella ## 
+
+# Get percents for each of the 3 categories, missing, closely related, not closely related 
 Missing_min_same <- length(which(is.na(salmonella$Min.same)))/nrow(salmonella)
 close_min_same <- length(which(salmonella$Min.same <= 7))/nrow(salmonella)
 far_min_same <- length(which(salmonella$Min.same > 7))/nrow(salmonella)
 
+# Make the data frame and reaarange  
 min_same_salmonella <- data.frame()
 min_same_salmonella[1,1] <- "Missing"
 min_same_salmonella[1,2] <- round(Missing_min_same,2)
@@ -526,13 +533,15 @@ min_same_salmonella[3,1] <- "Not closely related"
 min_same_salmonella[3,2] <- round(far_min_same,2)
 names(min_same_salmonella) <- c("Minimum Same", "Percent")
 
-min_same_salmonella %>% kbl()
 
-#
+# E. Coli ## 
+
+# Get percents for each of the 3 categories, missing, closely related, not closely related 
 Missing_min_same <- length(which(is.na(ecoli$Min.same)))/nrow(ecoli)
 close_min_same <- length(which(ecoli$Min.same <= 7))/nrow(ecoli)
 far_min_same <- length(which(ecoli$Min.same > 7))/nrow(ecoli)
 
+# Make the data frame and reaarange  
 min_same_ecoli <- data.frame()
 min_same_ecoli[1,1] <- "Missing"
 min_same_ecoli[1,2] <- round(Missing_min_same,2)
@@ -542,13 +551,16 @@ min_same_ecoli[3,1] <- "Not closely related"
 min_same_ecoli[3,2] <- round(far_min_same,2)
 names(min_same_ecoli) <- c("Minimum Same", "Percent")
 
-min_same_ecoli %>% kbl()
 
-#
+
+## Campylobacter ## 
+
+# Get percents for each of the 3 categories, missing, closely related, not closely related 
 Missing_min_same <- length(which(is.na(campylobacter$Min.same)))/nrow(campylobacter)
 close_min_same <- length(which(campylobacter$Min.same <= 7))/nrow(campylobacter)
 far_min_same <- length(which(campylobacter$Min.same > 7))/nrow(campylobacter)
 
+# Make the data frame and reaarange  
 min_same_campylobacter <- data.frame()
 min_same_campylobacter[1,1] <- "Missing"
 min_same_campylobacter[1,2] <- round(Missing_min_same,2)
@@ -558,51 +570,186 @@ min_same_campylobacter[3,1] <- "Not closely related"
 min_same_campylobacter[3,2] <- round(far_min_same,2)
 names(min_same_campylobacter) <- c("Minimum Same", "Percent")
 
-min_same_campylobacter %>% kbl()
+## Create a data frame with all the data in a nice format, which requires rearranging 
+
+Minimum_same_illnesses <- as.data.frame(rbind(min_same_salmonella, min_same_ecoli, min_same_campylobacter))
+Minimum_same_illnesses[10:12,] <- ""
+Minimum_same_illnesses <- apply(Minimum_same_illnesses, 2, as.character)
+Minimum_same_illnesses[10,1] <- "Salmonella"
+Minimum_same_illnesses[11,1] <- "Ecoli"
+Minimum_same_illnesses[12,1] <- "Campylobacter"
+Minimum_same_illnesses <- Minimum_same_illnesses[c(10,1:3,11,4:6,12,7:9),]
+
+# print  to a data frame 
+Minimum_same_illnesses %>%
+  kbl(caption = "Percentanges regarding Closely related SNPs by Illness", booktabs=T,    escape=F, align = "c") %>%
+  kable_styling(full_width = FALSE, latex_options = c('hold_position'))
+
 
 ```
 
-We observe that the min same is the same. Are there temporal trends by region? We will seek to see if any given 
+
+We recall from the [variable descriptions](https://www.ncbi.nlm.nih.gov/pathogens/pathogens_help/#isolates-browser-data-field-MinSame) that this variable tells us the closeness to other strains that were isolated in the same source (clinical or environmental). As we recall from our discussion with Subject matter expert Dr. Julian if isolates are within 7 SNPs they are closely related to each other (cite lecture). Since we want to look at outbreaks we assume that these would be derived of isolates that are close to others genetically and if they are popping up in similar regions to see if there are any regions/times that pop up in the data. Given the level of missingness in Date information that we will consider the trends over month, though it would be more beneficial to look at trends by week the reporting quality on $\textit{Collection.date}$ is very poor, and as we can observe, data pertaining to the day is mostly missing, so we will look at specimens that were collected by month. Given that the data is longitudinal in nature over 9 years with many regions, so we want to look at very closely related strains to see if there are concentrations of these cases in a region. Due to the large number of combinations of months years and regions we look for instances where there were more than 100 cases of an illness that are on average the $\textit{Min.same}$ is less than 3 SNPs from the others. 
+
+
+
+
 
 ```{r,message=FALSE, warning=FALSE}
-# Month and year 
 
-#sal_subset$week <- week(sal_subset$Create.date)
-#x <- sal_subset %>%  group_by(year, week) %>% 
- #               summarize(meaa = mean(Min.same, na.rm = T), 
-  #                        num_mn = sum(is.na(Min.same)), 
-   #                       num = n())  %>% 
-    #            ungroup() %>% 
-     #           arrange(year, week)
+
+## We can now look at what we define to be outbreaks, in which we find there are more than 100 people
+## in a given month that have a closely related strain of an illness 
+
+# Get the month name into a readable form, we only need this for Salmonella and E. Coli as the 
+# results are not worthy of a table for Campylobacter 
+
+# Change the months #
+salmonella <- salmonella %>% mutate(month1 = case_when(month ==1 ~ "Jan", 
+                                                       month ==2 ~ "Feb",
+                                                       month ==3 ~ "Mar",
+                                                       month ==4 ~ "Apr",
+                                                       month ==5 ~ "May",
+                                                       month ==6 ~ "Jun",
+                                                       month ==7 ~ "Jul",
+                                                       month ==8 ~ "Aug",
+                                                       month ==9 ~ "Sep",
+                                                       month ==10 ~ "Oct",
+                                                       month ==11 ~ "Nov",
+                                                       month ==12 ~ "Dec"))
+
+ecoli <- ecoli %>% mutate(month1 = case_when(month ==1 ~ "Jan", 
+                                             month ==2 ~ "Feb",
+                                             month ==3 ~ "Mar",
+                                             month ==4 ~ "Apr",
+                                             month ==5 ~ "May",
+                                             month ==6 ~ "Jun",
+                                             month ==7 ~ "Jul",
+                                             month ==8 ~ "Aug",
+                                             month ==9 ~ "Sep",
+                                             month ==10 ~ "Oct",
+                                             month ==11 ~ "Nov",
+                                             month ==12 ~ "Dec"))
+
+
+
+# Salmonella "outbreaks" #
+
+# Look at the number of cases in a region in a given month/year and find how closely related they 
+# are on average 
+sal_subset <- salmonella %>%
+              filter(!is.na(month1)) %>% 
+              group_by(year, month1, region) %>% 
+              summarize(mean1 = round(mean(Min.same, na.rm = T),2), 
+                        sd1 = round(sd(Min.same, na.rm = T),2),
+                        num = n())  %>% 
+              ungroup() %>% 
+          # Substantial number of cases that are very closely related 
+              filter(mean1 < 3 & num > 100) %>% 
+              pivot_wider(names_from = region, values_from = c(mean1, sd1))
+ 
+# Get the data into a data frame, copy and paste the mean and sd in  one column
+sal_subset <- as.data.frame(sal_subset)
+sal_subset[,4] <- paste(sal_subset[,4], "(", sal_subset[,8], ")")
+sal_subset[,5] <- paste(sal_subset[,5], "(", sal_subset[,9], ")")
+sal_subset[,6] <- paste(sal_subset[,6], "(", sal_subset[,10], ")")
+sal_subset[,7] <- paste(sal_subset[,7], "(", sal_subset[,11], ")")
+sal_subset <- sal_subset[,-c(8:11)]
+sal_subset <- apply(sal_subset,2,as.character)
+sal_subset <- as.data.frame(sal_subset)
+
+# Get rid of NA  (NA) from cells in the data frame 
+sal_subset$mean1_Northeast <- ifelse(nchar(sal_subset$mean1_Northeast) == 9, 
+                                     mean1_Northeast <- "", 
+                                     mean1_Northeast <- sal_subset$mean1_Northeast)
+sal_subset$mean1_West <- ifelse(nchar(sal_subset$mean1_West) == 9, 
+                                     mean1_West <- "", 
+                                     mean1_West <- sal_subset$mean1_West)
+sal_subset$mean1_South <- ifelse(nchar(sal_subset$mean1_South) == 9, 
+                                     mean1_South <- "", 
+                                     mean1_South <- sal_subset$mean1_South)
+sal_subset$mean1_Midwest <- ifelse(nchar(sal_subset$mean1_Midwest) == 9, 
+                                     mean1_Midwest <- "", 
+                                     mean1_Midwest <- sal_subset$mean1_Midwest)
+
+names(sal_subset) <- c("Year", "Month", "Number of cases", "Midwest", "South", "West", "Northeast")
+
+# Print to a pretty data frame 
+sal_subset %>%
+  kbl(caption = "Average (Standard Deviation) Min.same for closely related strains when more than 100 cases occur in a region, Salmonella", booktabs=T,    escape=F, align = "c") %>%
+  kable_styling(full_width = FALSE, latex_options = c('hold_position'))
+
+
+
+
+
+# Ecoli  "outbreaks" 
+
+# Look at the number of cases in a region in a given month/year and find how closely related they 
+# are on average 
+eco_subset <- ecoli %>% filter(!is.na(month1)) %>% 
+                    group_by(year, month1, region) %>% 
+                    summarize(mean1 = round(mean(Min.same, na.rm = T),2), 
+                              sd1 = round(sd(Min.same, na.rm = T),2),
+                          num = n())  %>% 
+                ungroup() %>% 
+                # Substantial number of cases that are very closely related 
+                filter(mean1 < 3 & num > 100) %>% 
+                pivot_wider(names_from = region, values_from = c(mean1, sd1))
+
+# Get the data into a data frame, copy and paste the mean and sd in  one column
+eco_subset <- as.data.frame(eco_subset)
+eco_subset[,4] <- paste(eco_subset[,4], "(", eco_subset[,8], ")")
+eco_subset[,5] <- paste(eco_subset[,5], "(", eco_subset[,9], ")")
+eco_subset[,6] <- paste(eco_subset[,6], "(", eco_subset[,10], ")")
+eco_subset[,7] <- paste(eco_subset[,7], "(", eco_subset[,11], ")")
+eco_subset <- eco_subset[,-c(8:11)]
+eco_subset <- apply(eco_subset,2,as.character)
       
+eco_subset <- as.data.frame(eco_subset)
+names(eco_subset) <- c("Year", "Month", "Number of cases", "West", "Midwest", "South", "USA")
 
-#x <- as.data.frame(x)   
 
-#x$try <- 0
+# Get rid of NA  (NA) from cells in the data frame 
+eco_subset$USA <- ifelse(nchar(eco_subset$USA) == 9, 
+                          USA <- "", 
+                          USA <- eco_subset$USA)
+eco_subset$West <- ifelse(nchar(eco_subset$West) == 9, 
+                                     West <- "", 
+                                     West <- eco_subset$West)
+eco_subset$South <- ifelse(nchar(eco_subset$South) == 9, 
+                                     South <- "", 
+                                     South <- eco_subset$South)
+eco_subset$Midwest <- ifelse(nchar(eco_subset$Midwest) == 9, 
+                                     Midwest <- "", 
+                                     Midwest <- eco_subset$Midwest)
 
-#x <- x %>% mutate(weeks =  case_when(year == 2013 ~ week, 
- #                               year == 2014 ~ week+52, 
-  #                              year == 2015 ~ week+(2*52), 
-   #                             year == 2016 ~ week+(3*52),
-    #                            year == 2017 ~ week+(4*52),
-     #                           year == 2018 ~ week+(5*52),
-     #                           year == 2019 ~ week+(6*52),
-      #                          year == 2020 ~ week+(7*52),
-       #                         year == 2021 ~ week+(8*52),
-        #                        year == 2022 ~ week+(9*52)))
+# Print to a pretty data frame 
+eco_subset %>%
+  kbl(caption = "Average (Standard Deviation) Min.same for closely related strains when more than 100 cases occur in a region, E. Coli", booktabs=T,    escape=F, align = "c") %>%
+  kable_styling(full_width = FALSE, latex_options = c('hold_position'))
+ 
 
-#x <- as.data.frame(x)
-#for(i in 2:nrow(x)){
- # x$try[i] <- x$weeks[i]-x$weeks[i-1]
-#}
+# Campylobacter 
 
-# We want to look at outbreaks close in time
-#x %>% filter(try < 2 & meaa  < 7)
+# Look at the number of cases in a region in a given month/year and find how closely related they 
+# are on average 
+camp_subset <- campylobacter %>% 
+               filter(!is.na(month)) %>% 
+               group_by(year, month, region) %>% 
+               summarize(mean1 = round(mean(Min.same, na.rm = T),2), 
+                         sd1 = round(sd(Min.same, na.rm = T),2),
+                         num = n())  %>% 
+               ungroup() %>% 
+            # Substantial number of cases that are very closely related 
+               filter(mean1 < 3 & num == 43) %>% 
+               pivot_wider(names_from = region, values_from = c(mean1, sd1))
 
+## Nothing by our threshold, just the max that we have changed in the summarization above  
 
 ```
 
-
+We note that the data regarding Salmonella has the most instances  (13) where over 100 individuals in a region contract similar strains of the illness in a month, while there are also some instances of concerning outbreaks with the E. Coli (7), we observe that when we look across the years and months for camylobacter none of these instances meet our threshold for inclusion as a large outbreak with the month having the most cases of very cloesly related campylobacter across our studies is Spetemeber 2018 when there were 43 cloesly related cases of campylobacter in the Southern United States. Looking at table X, we observe that for samonella that in 2015 the 3 summer months we had multiple cases of highly related strains in the Southern United States, which are likely linked, simiary we observe that in March and febuaray of 2018 there is a large amount of closely related cases in the Midwest. No appearnt trends pertaining to a certain region stick out in the E. coli data. 
 
 ```{r ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}
 
