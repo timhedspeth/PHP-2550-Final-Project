@@ -4,9 +4,10 @@
 # on the attributes:  region of the united states, month, number of cases, and 
 # the Min.same 
 
-# In order to make this as reporducible as possible we have created a function
+# In order to make this as reproducible as possible we have created a function
 # that classifies outbreaks 
 
+library(tidyverse)
 
 
 #~~~~~~~~~~~~~~~~~~~~~#
@@ -25,7 +26,7 @@ add_outbreak <- function(dataset, numbercases = 100, similarity = 3){
   dataset <- as.data.frame(dataset)
   
   
-  # Try to catch an inappropraite data frame 
+  # Try to catch an inappropriate data frame 
   if(!("month" %in% names(dataset) | "year" %in% names(dataset) | 
        "region" %in% names(dataset) | "Min.same" %in% names(dataset))){
     warning("It appears you don't have the proper columns, please make sure you
