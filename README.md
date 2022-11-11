@@ -18,7 +18,7 @@ https://github.com/timhedspeth/PHP-2550-Final-Project/blob/main/Initial%20work/E
 
 ### Methods 
 
-We have moved into the modeling phase of this project, where we hope to identify trends in seasonality, and identify outbreaks with harmonic regression, logistic regression and Tree based classification models. This code is avilable in [Initial_methods.R](https://github.com/timhedspeth/PHP-2550-Final-Project/blob/main/Methods/Initial_methods.R) file under the methods file. 
+We have moved into the modeling phase of this project, where we hope to identify trends in seasonality, and identify outbreaks with harmonic regression, logistic regression and Tree based classification models. This code is avilable in [Initial_methods.R](https://github.com/timhedspeth/PHP-2550-Final-Project/blob/main/Methods/Initial_methods.R) file under the methods file. We also decided to to create a function that can define an outbreak for data that has been proocessed in a similar way to ours in an effort to have a function that allows us to varry the outbreak measure we are interested in, which is found in [Outbreak.R](https://github.com/timhedspeth/PHP-2550-Final-Project/blob/main/Methods/Outbreak_function.R).
 
 
 
