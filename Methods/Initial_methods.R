@@ -12,6 +12,8 @@ library(ggpubr) # Arrange GGplots
 library(pROC) 
 library(olsrr) 
 library(rpart.plot) 
+library(tsModel)
+library(caret)
 
 
 #~~~~~~~~#
@@ -21,9 +23,6 @@ library(rpart.plot)
 # Set the working directory and read in the preprocessed data 
 setwd("~/Desktop/Semester_3/Practical/Final")
 ecoli <- read.csv("ecoli_clean_final.csv")
-
-
-
 
 
 
@@ -60,18 +59,15 @@ miss1 <- as.data.frame(apply(miss,2,sum)/nrow(miss))
 
 
 
-# There is missingness in the outcome so we will weight the outcome 
-
-
+# Join the data sets  
 ecoli_test <- left_join(ecoli_model_cases, ecoli_counts, by=c("year"="year", "month"="month"))
 
-model1 <- glm(cases ~ year + West + Midwest + South +Northeast + 
-                harmonic(month,1,12), 
+model1 <- glm(cases ~  West + Midwest + South +Northeast + 
+                harmonic(month,2,12), 
               family=quasipoisson, 
               data = ecoli_test)
 
 summary(model1)
-
 
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -125,8 +121,9 @@ ecoli <- ecoli %>%
 #length(which(ecoli$outbreak == 1))/nrow(ecoli)
 # There is only 6% in the outbreak so we will need to weight this regressionn 
 
-## Outbrekak 
+## Outbreak 
 
+# Weight the models
 proportion0_ecoli <- 1/(sum(ecoli$outbreak == 0)/nrow(ecoli)) 
 proportio1_ecoli <- 1/(sum(ecoli$outbreak == 1)/nrow(ecoli)) 
 
@@ -136,6 +133,7 @@ modweights <- ifelse(ecoli$outbreak == 0,
 
 ecoli$outbreak <- as.integer(ecoli$outbreak) 
 
+# Fit the model 
 logistic_model <- glm(outbreak ~ season + Isolation.source.category,
                       data = ecoli, 
                       weights = modweights, 
@@ -143,13 +141,18 @@ logistic_model <- glm(outbreak ~ season + Isolation.source.category,
 
 summary(logistic_model)
 
-library(pROC)
 
 ecoli$prob <- predict(logistic_model, ecoli, type="response")
 
+# Get the AUC 
 acc <- roc(outbreak ~ prob, data =ecoli)
-
 auc(acc)
+
+# Confusion matrix 
+ecoli$predicted_response_log <- ifelse(ecoli$prob > .5, 1,0)
+confusionMatrix(as.factor(ecoli$predicted_response_log), as.factor(ecoli$outbreak))
+
+
 
 
 ## Tree based model ## 
@@ -157,16 +160,21 @@ auc(acc)
 tree <- rpart(outbreak~ season + Isolation.source.category, data = ecoli, weights = modweights, 
               control=rpart.control(minsplit = 20, minbucket = 20/3,cp =.001)) 
 
-
+# Not as pretty tree plot 
 plot(tree,  
      main = "Intial tree model",  
      sub = "Figure 2. Intial tree model, prior to pruning")  
 text(tree) 
 
+# Pretty tree based model 
+prp(tree)
+
+# Assess the complexity of tree 
 plotcp(tree,  
        sub = "Figure 3. How x error changes based on complexity") 
-#printcp(tree) 
+printcp(tree) 
 
+# Assess how the model is performing 
 predicted_tree <- as.data.frame(predict(tree, ecoli))
 names(predicted_tree) <- c("prob_tree")
 ecoli <- cbind(ecoli, predicted_tree)
@@ -174,4 +182,8 @@ ecoli <- cbind(ecoli, predicted_tree)
 acc1 <- roc(outbreak ~ prob_tree, data =ecoli)
 
 auc(acc1)
+
+# Confusion matrix 
+ecoli$predicted_response_tree <- ifelse(ecoli$prob_tree > .5, 1,0)
+confusionMatrix(as.factor(ecoli$predicted_response_tree), as.factor(ecoli$outbreak))
 
