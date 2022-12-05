@@ -16,7 +16,7 @@ library(tidyverse)
 
  
 
-add_outbreak <- function(dataset, numbercases = 100, similarity = 3){
+add_outbreak <- function(dataset, numbercases = 20, similarity = 7){
   #' This function will create a binary variable to identify if a case was part of a user defined outbreak
   #' 
   #'@param data, the data frame of interest, must contain 
@@ -35,7 +35,7 @@ add_outbreak <- function(dataset, numbercases = 100, similarity = 3){
     
   # Find the number of cases in an outbreak   
   data_subset <- dataset %>%
-                 filter(!is.na(month)) %>% 
+                 filter(!is.na(month) & region  != "USA, General") %>% 
                  group_by(year, month, region) %>% 
                  summarize(mean1 = round(mean(Min.same, na.rm = T),2), 
                            sd1 = round(sd(Min.same, na.rm = T),2),
@@ -66,12 +66,37 @@ add_outbreak <- function(dataset, numbercases = 100, similarity = 3){
 }
 
 
-# Do a sanity check of the functionn 
+#~~~~~~~~~~~~~~~~~~#
+## Lasso Function ## 
+#~~~~~~~~~~~~~~~~~~# 
 
-# Set the working directory and read in the preprocessed data 
-setwd("~/Desktop/Semester_3/Practical/Final")
-ecoli <- read.csv("ecoli_clean_final.csv")
-add_outbreak(ecoli)
+# This function was adapted from a code provided by Alice Paul, PhD, the 
+# instructor for  this course 
+
+lasso <- function(df,numtimes) { 
+  #' Runs 10-fold CV for lasso and returns corresponding coefficients 
+  #' @param df, data set
+  #' @return coef, coefficients for minimum cv error
+  
+  # Matrix form for ordered variables 
+  x.ord <- model.matrix(as.factor(outbreak)~., data = df)[,-1] 
+  y.ord <- as.factor(df$outbreak)
+  
+  # Generate folds
+  k <- numtimes 
+  set.seed(1) # consistent seeds between imputed data sets
+  folds <- sample(1:k, nrow(df), replace=TRUE)
+  
+  # Lasso model
+  lasso_mod <- cv.glmnet(x.ord, y.ord, nfolds = numtimes, foldid = folds, 
+                         alpha = 1, family = "binomial") 
+  
+  # Get coefficients 
+  coef <- coef(lasso_mod, lambda = lasso_mod$lambda.min) 
+  return(coef) 
+} 
+
+
 
 
 
