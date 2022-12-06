@@ -65,9 +65,9 @@ Missing_by_col  %>%
  #  Source type: all missing! 
  #  Outbreak: This is all missing! 
  
-ecoli <- ecoli %>% select(-c(Host.disease, Lat.Lon, Source.type, Outbreak))
-campylobacter <- campylobacter %>% select(-c(Host.disease, Lat.Lon, Source.type, Outbreak))
-salmonella <- salmonella %>% select(-c(Host.disease, Lat.Lon, Source.type, Outbreak))
+#ecoli <- ecoli %>% select(-c(Host.disease, Lat.Lon, Source.type, Outbreak))
+#campylobacter <- campylobacter %>% select(-c(Host.disease, Lat.Lon, Source.type, Outbreak))
+#salmonella <- salmonella %>% select(-c(Host.disease, Lat.Lon, Source.type, Outbreak))
 
 
 #~~~~~~~~~~~#
@@ -149,9 +149,100 @@ campylobacter <- campylobacter %>% mutate(region = case_when(Location %in% c("ME
                                                              Location %in% c("USA", "PR", "GU") ~ "USA, General"))
 
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+## Which variables will be dropped from each ## 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+
+# We know that X.organism sole provides the name of what we are examining
+# Create date and Collection date can be dropped as  we already have date info
+# Isolation source: we have our own 
+# Latitude and longitude won't be helpful for analysis 
+# So this will be dropped from all  
+
+ecoli <- ecoli %>% select(-c(X.Organism.group, Create.date, Collection.date, Isolation.source, Lat.Lon))
+campylobacter <- campylobacter %>% select(-c(X.Organism.group, Create.date, Collection.date, Isolation.source, Lat.Lon))
+salmonella <- salmonella %>% select(-c(X.Organism.group, Create.date, Collection.date, Isolation.source, Lat.Lon))
+
+
+
+## E. coli ## 
+
+apply(ecoli, 2, function(x){return(sum(is.na(x))/length(x))})
+
+
+# Serovar = 87% missing 
+# Host disease = 89% missing
+# Isolation type = 68 % missing
+# Source.type = 99% missing 
+# Min.diff = 85% missing 
+# outbreak = 99% missing 
+# Computed types = 100% missing 
+
+ecoli <- ecoli %>% select(-c(Serovar, Host.disease, Isolation.type, Source.type,
+                             Min.diff, Outbreak, Computed.types))
+
+apply(ecoli, 2, function(x){return(sum(is.na(x))/length(x))})
+
+# Strains 
+strain_levels_df <- as.data.frame(table(as.factor(ecoli$Strain)))
+strain_included <-  strain_levels_df %>% filter(Freq > 15)
+levels_strain <- as.vector(strain_included$Var1) 
+ecoli$Strain <- case_when(ecoli$Strain %in% levels_strain ~ ecoli$Strain, 
+                          is.na(ecoli$Strain) ~ ecoli$Strain,
+                          !(ecoli$Strain %in% levels_strain) ~ "Other")
+ecoli$Strain[ecoli$Strain == "E. coli"] <- "Ecoli"
+
+# Isolate Identifiers 
+identifiers_levels_df <- as.data.frame(table(as.factor(ecoli$Isolate.identifiers)))
+#identifiers_levels_df %>% filter(Freq == 2)
+
+# There are only a few that have 2 observations, none more than that, we drop it 
+
+# Isolate 
+isolate_levels_df <- as.data.frame(table(as.factor(ecoli$Isolate)))
+#isolate_levels_df %>% filter(Freq > 1)
+
+# No levels are unique, delete 
+
+# SNP Cluster 
+SNP_df <- as.data.frame(table(as.factor(ecoli$SNP.cluster)))
+snp_included <- SNP_df %>% filter(Freq > 100)
+levels_snp <- as.vector(snp_included$Var1)
+ecoli$SNP.cluster <- case_when(ecoli$SNP.cluster %in% levels_snp ~ ecoli$SNP.cluster, 
+                          is.na(ecoli$SNP.cluster) ~ ecoli$SNP.cluster,
+                          !(ecoli$SNP.cluster %in% levels_snp) ~ "Other")
+
+# Biosample 
+sample_df <- as.data.frame(table(as.factor(ecoli$BioSample)))
+#sample_df %>%  filter(Freq > 2)
+
+# Bio sample only has 26 with Freq = 2, we will delete it 
+
+assembly_df <- as.data.frame(table(as.factor(ecoli$Assembly)))
+#assembly_df %>% filter(Freq == 1)
+
+#  Assembly is unique to each, delete 
+
+# AMR
+AMR_df <- as.data.frame(table(as.factor(ecoli$AMR.genotypes)))
+AMR_included <- AMR_df %>% filter(Freq > 300)
+levels_AMR <- as.vector(AMR_included$Var1)
+ecoli$AMR.genotypes <- case_when(ecoli$AMR.genotypes %in% levels_AMR ~ ecoli$AMR.genotypes, 
+                               is.na(ecoli$AMR.genotypes) ~ ecoli$AMR.genotypes,
+                               !(ecoli$AMR.genotypes %in% levels_AMR) ~ "Other")
+
+
+
+
+ecoli <- ecoli %>% select(-c(Isolate.identifiers, Isolate, BioSample, Assembly))
+
+
+
 #~~~~~~~~~~~~~~~~~~~~~#
 ## Read the data out ##
 #~~~~~~~~~~~~~~~~~~~~~#
+
 
 write.csv(ecoli, "final_ecoli.csv", row.names = FALSE)
 write.csv(campylobacter, "final_campylobacter.csv", row.names = FALSE)
