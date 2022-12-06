@@ -6,6 +6,11 @@
 # https://github.com/timhedspeth/PHP-2550-Final-Project 
 
 
+# To implement this we will first: 
+  # Read in the data and load packages 
+  # Use the add_outbreak() function 
+
+
 rm(list=ls())
 
 #~~~~~~~~~~~~~~~~~~~~~#
@@ -40,19 +45,57 @@ salmonella <- read.csv("final_salmonella.csv")
 #~~~~~~~~~~~~~~~~~~~~#
 
 
+
+
+# Since the outbreak is a function of region and month year we will delete it 
+# The outbreak function requires Min.Same 
+
+ecoli <- ecoli %>% filter(!is.na(month) & !is.na(year) & !is.na(Min.same)) 
+
+
 # Add the outbreak to all of the data sets, using 
 # the function with the parameters specified by Dr. Julian 
-
+  
 ecoli <-  add_outbreak(ecoli)
 
-# Remove variables that could causes issues 
-ecoli1  <- ecoli[,-c(1,3,4,5,6,7,8,9,13,14,15,16,17,18,23)]
-ecoli1[] <- lapply(ecoli1, function(x){return(as.factor(x))})
+# We will drop the day and go to complete cases for strain 
+ecoli <- ecoli %>% select(-c(day, month_year, Location, region, Min.same)) %>% filter(!is.na(Strain))
 
-apply(eco, 2, function(x){return(sum(is.na(x))/length(x))})
 
-ecoli1 <- ecoli1 %>% filter(!is.na(Min.same))
+ecoli[] <- lapply(ecoli, function(x){return(as.factor(x))})
 
-eco <- ecoli1 %>% filter(!is.na(month) & !is.na(Strain))
+#apply(ecoli, 2, function(x){return(sum(is.na(x))/length(x))})  # all complete
+                                                                # uncomment to validate
 
-lasso(eco, 6)
+
+
+# Make the risk score model 
+ecoli_coef <- lasso(ecoli, 10)
+ecoli_coef <- as.data.frame(as.matrix(ecoli_coef))
+
+ecoli_coefs <- round(ecoli_coef$s1/median(ecoli_coef$s1 != 0))  
+
+ecoli_coef$s1 <- ecoli_coefs
+
+
+## Evaluate the model ##
+
+variables1 <- model.matrix(outbreak~., ecoli)
+
+ecoli$score <- variables1 %*% ecoli_coefs
+
+# How does the score do?
+
+mod <- glm(outbreak ~ score, data=ecoli, family = quasibinomial()) 
+
+ecoli$precited <- predict(mod, type = "response")
+threshold <- .5 
+
+clinical_perfomance <- roc(outbreak ~ precited, data=ecoli)
+auc(clinical_perfomance)
+
+ggroc(clinical_perfomance)
+
+
+
+
