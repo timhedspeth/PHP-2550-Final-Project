@@ -42,19 +42,20 @@ add_outbreak <- function(dataset, numbercases = 20, similarity = 7){
                            num = n())  %>% 
                  ungroup() %>% 
                  # Substantial number of cases that are very closely related 
-                 filter(mean1 < similarity & num > numbercases) %>% 
-                 pivot_wider(names_from = region, values_from = c(mean1, sd1))
+                 filter(mean1 < similarity & num > numbercases) #%>% 
+                 #pivot_wider(names_from = region, values_from = c(mean1, sd1))
   
   
   
   # Define a new outbreak variable 
-  dataset$month_year <- paste0(dataset$year,dataset$month)
-  data_subset$month_year <- paste0(data_subset$year, data_subset$month)
+  dataset$month_year <- paste0(dataset$year,dataset$month,dataset$region)
+  data_subset$month_year <- paste0(data_subset$year, data_subset$month, data_subset$region)
   
-  # Put the outbreaks in the  data frame 
+  # Put the outbreaks in the data frame 
   dataset$outbreak <- ifelse(dataset$month_year %in% as.vector(data_subset$month_year),
                              1, 0)
   
+
   # What do we return? 
   if(sum(dataset$outbreak ==1) == 0){
     return("There appear to be no outbreaks in this data based on your paramters")
@@ -87,9 +88,25 @@ lasso <- function(df,numtimes) {
   set.seed(1) # consistent seeds between imputed data sets
   folds <- sample(1:k, nrow(df), replace=TRUE)
   
+  
+  #  This function will auto do weighting if one of the proportions is 
+  #  below 25% observed weighting will occur 
+  
+  table_outcomes <- as.data.frame(table(df$outbreak))
+  prop0 <- table_outcomes[1,2]/(sum(table_outcomes[,2]))
+  prop1 <- table_outcomes[2,2]/(sum(table_outcomes[,2]))
+  modweight <- ifelse(df$outbreak == 0, 
+                      1/prop0, 
+                      1/prop1)
+  
   # Lasso model
+  if(prop0 > .3 & prop1 > .3){
   lasso_mod <- cv.glmnet(x.ord, y.ord, nfolds = numtimes, foldid = folds, 
                          alpha = 1, family = "binomial") 
+  } else{
+  lasso_mod <- cv.glmnet(x.ord, y.ord, nfolds = numtimes, foldid = folds, 
+                         alpha = 1, family = "binomial", weights = modweight) 
+  }
   
   # Get coefficients 
   coef <- coef(lasso_mod, lambda = lasso_mod$lambda.min) 
