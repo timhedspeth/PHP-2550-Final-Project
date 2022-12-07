@@ -36,20 +36,21 @@ add_outbreak <- function(dataset, numbercases = 20, similarity = 7){
   # Find the number of cases in an outbreak   
   data_subset <- dataset %>%
                  filter(!is.na(month) & region  != "USA, General") %>% 
-                 group_by(year, month, region) %>% 
-                 summarize(mean1 = round(mean(Min.same, na.rm = T),2), 
-                           sd1 = round(sd(Min.same, na.rm = T),2),
+                 group_by(year, month, region, SNP.cluster, Isolation.source.category,
+                          AMR.genotypes) %>% 
+                 summarize(#mean1 = round(mean(Min.same, na.rm = T),2), 
+                           #sd1 = round(sd(Min.same, na.rm = T),2),
                            num = n())  %>% 
                  ungroup() %>% 
                  # Substantial number of cases that are very closely related 
-                 filter(mean1 < similarity & num > numbercases) #%>% 
+                 filter(num > numbercases) #%>% 
                  #pivot_wider(names_from = region, values_from = c(mean1, sd1))
   
-  
+  #mean1 < similarity 
   
   # Define a new outbreak variable 
-  dataset$month_year <- paste0(dataset$year,dataset$month,dataset$region)
-  data_subset$month_year <- paste0(data_subset$year, data_subset$month, data_subset$region)
+  dataset$month_year <- paste0(dataset$year,dataset$month,dataset$region, dataset$SNP.cluster)
+  data_subset$month_year <- paste0(data_subset$year, data_subset$month, data_subset$region, data_subset$SNP.cluster)
   
   # Put the outbreaks in the data frame 
   dataset$outbreak <- ifelse(dataset$month_year %in% as.vector(data_subset$month_year),
@@ -74,7 +75,7 @@ add_outbreak <- function(dataset, numbercases = 20, similarity = 7){
 # This function was adapted from a code provided by Alice Paul, PhD, the 
 # instructor for  this course 
 
-lasso <- function(df,numtimes) { 
+lasso <- function(df,numtimes, prob = .3) { 
   #' Runs 10-fold CV for lasso and returns corresponding coefficients 
   #' @param df, data set
   #' @return coef, coefficients for minimum cv error
@@ -85,7 +86,7 @@ lasso <- function(df,numtimes) {
   
   # Generate folds
   k <- numtimes 
-  set.seed(1) # consistent seeds between imputed data sets
+  #set.seed(1) # consistent seeds between imputed data sets
   folds <- sample(1:k, nrow(df), replace=TRUE)
   
   
@@ -100,17 +101,17 @@ lasso <- function(df,numtimes) {
                       1/prop1)
   
   # Lasso model
-  if(prop0 > .3 & prop1 > .3){
-  lasso_mod <- cv.glmnet(x.ord, y.ord, nfolds = numtimes, foldid = folds, 
-                         alpha = 1, family = "binomial") 
-  } else{
+  #if(prop0 > prob & prop1 > prob){
+  #lasso_mod <- cv.glmnet(x.ord, y.ord, nfolds = numtimes, foldid = folds, 
+   #                      alpha = 1, family = "binomial") 
+  #} else{
   lasso_mod <- cv.glmnet(x.ord, y.ord, nfolds = numtimes, foldid = folds, 
                          alpha = 1, family = "binomial", weights = modweight) 
-  }
+  #}
   
   # Get coefficients 
   coef <- coef(lasso_mod, lambda = lasso_mod$lambda.min) 
-  return(coef) 
+  return(modweight) 
 } 
 
 

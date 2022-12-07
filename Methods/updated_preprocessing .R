@@ -205,13 +205,7 @@ isolate_levels_df <- as.data.frame(table(as.factor(ecoli$Isolate)))
 
 # No levels are unique, delete 
 
-# SNP Cluster 
-SNP_df <- as.data.frame(table(as.factor(ecoli$SNP.cluster)))
-snp_included <- SNP_df %>% filter(Freq > 100)
-levels_snp <- as.vector(snp_included$Var1)
-ecoli$SNP.cluster <- case_when(ecoli$SNP.cluster %in% levels_snp ~ ecoli$SNP.cluster, 
-                          is.na(ecoli$SNP.cluster) ~ ecoli$SNP.cluster,
-                          !(ecoli$SNP.cluster %in% levels_snp) ~ "Other")
+
 
 # Biosample 
 sample_df <- as.data.frame(table(as.factor(ecoli$BioSample)))
@@ -224,18 +218,113 @@ assembly_df <- as.data.frame(table(as.factor(ecoli$Assembly)))
 
 #  Assembly is unique to each, delete 
 
-# AMR
-AMR_df <- as.data.frame(table(as.factor(ecoli$AMR.genotypes)))
-AMR_included <- AMR_df %>% filter(Freq > 300)
-levels_AMR <- as.vector(AMR_included$Var1)
-ecoli$AMR.genotypes <- case_when(ecoli$AMR.genotypes %in% levels_AMR ~ ecoli$AMR.genotypes, 
-                               is.na(ecoli$AMR.genotypes) ~ ecoli$AMR.genotypes,
-                               !(ecoli$AMR.genotypes %in% levels_AMR) ~ "Other")
-
-
 
 
 ecoli <- ecoli %>% select(-c(Isolate.identifiers, Isolate, BioSample, Assembly))
+
+
+## campylobacter ##
+
+apply(campylobacter, 2, function(x){return(sum(is.na(x))/length(x))})
+
+
+# Serovar = 99% missing 
+# Host.disease = 99% missing  
+# Source.type = 100% missing 
+# Outbreak = 100% missing
+# Computed.types = 100% missing
+# day = 98%  missing 
+
+campylobacter <- campylobacter %>% select(-c(Serovar,Host.disease,Source.type,
+                                            Outbreak, Computed.types))
+
+
+# Strain 
+strain_levels_df <- as.data.frame(table(as.factor(campylobacter$Strain)))
+# strain_levels_df %>% filter(Freq > 1) # 4 strains greater than 1, only  
+
+
+isolateids_levels_df <- as.data.frame(table(as.factor(campylobacter$Isolate.identifiers)))
+#isolateids_levels_df  %>% filter(Freq > 1) # Not enough levels to be considered 
+
+isolate_levels_df <- as.data.frame(table(as.factor(campylobacter$Isolate)))
+#isolate_levels_df  %>% filter(Freq > 1) # Not enough levels to be considered 
+
+isolation_levels_df <- as.data.frame(table(as.factor(campylobacter$Isolation.type)))
+#isolation_levels_df  %>% filter(Freq > 1) # Keep it this way 
+
+
+
+BioSample_levels_df <- as.data.frame(table(as.factor(campylobacter$BioSample)))
+#BioSample_levels_df  %>% filter(Freq > 1) # Keep it this way 
+
+
+
+
+
+campylobacter <- campylobacter %>% select(-c(Strain, Isolate.identifiers, Isolate, BioSample,day))
+
+
+
+## Salmonella ## 
+
+apply(salmonella, 2, function(x){return(sum(is.na(x))/length(x))})
+
+
+# Host.Disease: 99% missing 
+# Source.type: 99%
+# Outbreak: 99%
+# day: 85% 
+
+salmonella <- salmonella %>% select(-c(Host.disease, Source.type, Outbreak, day))
+
+strain_levels_df <- as.data.frame(table(as.factor(salmonella$Strain)))
+#strain_levels_df  %>% filter(Freq > 1) # Remove 
+
+isolateid_levels_df <- as.data.frame(table(as.factor(salmonella$Isolate.identifiers)))
+#isolateid_levels_df  %>% filter(Freq > 1) # Remove
+
+serovar_levels_df <- as.data.frame(table(as.factor(salmonella$Serovar)))
+serovar_included <-  serovar_levels_df %>% filter(Freq > 1000)
+levels_serovar <- as.vector(serovar_included$Var1) 
+salmonella$Serovar <- case_when(salmonella$Serovar %in% levels_serovar ~ salmonella$Serovar, 
+                                         is.na(salmonella$Serovar) ~ salmonella$Serovar,
+                                         !(salmonella$Serovar %in% levels_serovar) ~ "Other")
+
+isolate_levels_df <- as.data.frame(table(as.factor(salmonella$Isolate)))
+#isolate_levels_df  %>% filter(Freq > 1) # Remove
+
+isolationtype_levels_df <- as.data.frame(table(as.factor(salmonella$Isolation.type)))
+#isolationtype_levels_df  %>% filter(Freq > 1) # Keep
+
+
+
+
+biosamp_levels_df <- as.data.frame(table(as.factor(salmonella$BioSample)))
+#biosamp_levels_df  %>% filter(Freq > 1) # Keep
+
+
+assembly_levels_df <- as.data.frame(table(as.factor(salmonella$Assembly)))
+#assembly_levels_df  %>% filter(Freq > 1) # Keep
+
+
+
+compute_levels_df <- as.data.frame(table(as.factor(salmonella$Computed.types)))
+compute_included <- compute_levels_df  %>% filter(Freq > 2000) # Keep
+levels_compute <- as.vector(compute_included$Var1) 
+salmonella$Computed.types <- case_when(salmonella$Computed.types %in% levels_compute ~ salmonella$AMR, 
+                            is.na(salmonella$Computed.types) ~ salmonella$Computed.types,
+                            !(salmonella$Computed.types %in% levels_compute) ~ "Other")
+
+
+
+
+salmonella <- salmonella %>% select(-c(Strain, Isolate.identifiers, Isolate,
+                                       BioSample, Assembly))
+
+
+
+
 
 
 
