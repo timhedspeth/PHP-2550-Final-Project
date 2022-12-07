@@ -145,34 +145,152 @@ mod_campylobacter <- glm(outbreak ~ score, data=campylobacter, family = quasibin
 mod_salmonella <- glm(outbreak ~ score, data=salmonella, family = quasibinomial())
 
 
+#~~~~~~~~~~~~~~~~~~~~~~~~#
+## Performance Measures ##
+#~~~~~~~~~~~~~~~~~~~~~~~~#
 
-# 
 
-threshhold <- .5 
+threshhold <- .5  # For confusion matrices  
 
-ecoli$precited <- predict(mod_ecoli, type = "response")
+
+ecoli$predicted <- predict(mod_ecoli, type = "response")
 salmonella$predicted <- predict(mod_salmonella, type = "response") 
+campylobacter$predicted <- predict(mod_campylobacter, type = "response")
+
 
 # Ecoli 
-risk_perfomance_ecoli <- roc(outbreak ~ precited, data=ecoli)
-auc(risk_perfomance_ecoli)
-ggroc(risk_perfomance_ecoli)
+risk_perfomance_ecoli <- roc(outbreak ~ predicted, data=ecoli)
+measures <- data.frame()
+measures[1,1] <- "E. Coli"
+measures[1,2] <- auc(risk_perfomance_ecoli)
+measures[1,3] <- BrierScore(mod_ecoli)
+measures[1,4] <- 0.8172
+measures[1,5] <- 0.8708
+measures[1,6] <- 0.6747
+
+  
+ggroc(risk_perfomance_ecoli) +
+  theme_minimal() + 
+  geom_abline(intercept = 1, slope = 1,
+              color = "darkgrey", linetype = "dashed") +
+  labs(title = "E. Coli ROC curve")  +
+  annotate("text", x =.95,  y = .95, label="AUC = .88", 
+           size = 5, 
+           color = "red") +
+  annotate("text", x =.905,  y = .9, label="Brier Score = .12", 
+           size = 5, 
+           color = "red")
+
+confusionMatrix(as.factor(ifelse(ecoli$predicted > threshhold, 
+                                 1,0)), ecoli$outbreak)
 
 # Salmonella
 risk_perfomance_salmonella <- roc(outbreak ~ predicted, data=salmonella)
-auc(risk_perfomance_salmonella)
+measures[2,1] <- "Salmonella"
+measures[2,2] <- auc(risk_perfomance_salmonella)
+measures[2,3] <- BrierScore(mod_salmonella)
+measures[2,4] <- .817
+measures[2,5] <- .96
+measures[2,6] <- .24 
+
+
 ggroc(risk_perfomance_salmonella) +
   theme_minimal() + 
   geom_abline(intercept = 1, slope = 1,
               color = "darkgrey", linetype = "dashed") +
-  labs(title = "ROC curve") #+ 
-  #scale_color_discrete(name = "Model", 
+  labs(title = "Salmonella ROC curve") +
+  annotate("text", x =.95,  y = .95, label="AUC = .87", 
+           size = 5, 
+           color = "red") +
+  annotate("text", x =.905,  y = .9, label="Brier Score = .11", 
+           size = 5, 
+           color = "red")
+
+
+
+#+ 
+#scale_color_discrete(name = "Model", 
      #                  labels = c("Lasso, Clinical RS", 
        #                           "Ridge, Clinical RS"))
 
 confusionMatrix(as.factor(ifelse(salmonella$predicted > threshhold, 
                                  1,0)), salmonella$outbreak)
-BrierScore(mod_salmonella)
+
+
+## camplyobcter ##
+risk_perfomance_campylobacter <- roc(outbreak ~ predicted, data=campylobacter)
+measures[3,1] <- "campylobacter"
+measures[3,2] <- auc(risk_perfomance_campylobacter)
+measures[3,3] <- BrierScore(mod_campylobacter)
+measures[3,4] <- .9946
+measures[3,5] <- .999
+measures[3,6] <- .6308
+
+
+ggroc(risk_perfomance_campylobacter) +
+  theme_minimal() + 
+  geom_abline(intercept = 1, slope = 1,
+              color = "darkgrey", linetype = "dashed") +
+  labs(title = "Campylobacter ROC curve") +
+  annotate("text", x =.03,  y = .75, label="AUC = .99", 
+           size = 5, 
+           color = "red") +
+  annotate("text", x =.09,  y = .7, label="Brier Score = .0003", 
+           size = 5, 
+           color = "red")
+
+
+
+confusionMatrix(as.factor(ifelse(campylobacter$predicted > threshhold, 
+                                 1,0)), campylobacter$outbreak)
+
+
+
+
+
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+## Plot with all 3 illnesses ## 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+
+ggroc(list(Ecoli = risk_perfomance_ecoli, 
+           Salmonela = risk_perfomance_salmonella,
+           Camplyobacter =risk_perfomance_campylobacter)) + 
+    #scale_color_manual(values = c("red", "green", "blue")) +
+        theme_minimal() + 
+    geom_abline(intercept = 1, slope = 1,
+              color = "darkgrey", linetype = "dashed") +
+  labs(title = "ROC curves, Risk Score Models") +
+  annotate("text", x =.04,  y = .75, label="AUC = .88", 
+           size = 4, 
+           color = "red") +
+  annotate("text", x =.075,  y = .7, label="Brier Score = .12", 
+           size = 4, 
+           color = "red") +
+  annotate("text", x =.04,  y = .65, label="AUC = .87", 
+           size = 4, 
+           color = "green") +
+  annotate("text", x =.075,  y = .6, label="Brier Score = .11", 
+           size = 4, 
+           color = "green") +
+  annotate("text", x =.04,  y = .55, label="AUC = .99", 
+           size = 4, 
+           color = "blue") +
+  annotate("text", x =.085,  y = .5, label="Brier Score = .0003", 
+           size = 4, 
+           color = "blue") +
+  scale_color_discrete(name = "Model", 
+                       labels = c("E. Coli", 
+                             "Salmonela", 
+                             "Campylobacter")) +
+  scale_color_manual(values = c("red", "green", "blue"), 
+                     labels = c("E. Coli", 
+                                "Salmonela", 
+                                "Campylobacter"), 
+                     name = "Illness:") +
+   theme(legend.position = "bottom")
+
 
 
 
