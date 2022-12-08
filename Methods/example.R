@@ -93,7 +93,7 @@ lasso <- function(df,numtimes, prob = .3) {
   # Generate folds
   k <- numtimes 
   #set.seed(1) # consistent seeds between imputed data sets
-  folds <- as.numeric(salmonella$month)
+  folds <- as.numeric(df$month)
   
   
   #  This function will auto do weighting 
@@ -129,7 +129,7 @@ salmonella <- salmonella %>% filter(!is.na(month) & !is.na(year) &
                               select(-c(Min.diff, Location))
 
 # We will add an outbreak to the model 
-salmonella <- add_outbreak(salmonella)
+salmonella <- add_outbreak(salmonella, 10)
 lapply(salmonella, function(x) sum(is.na(x))/length(x))
 
 #salmonella <- add_outbreak(salmonella)
@@ -152,26 +152,68 @@ salmonella$AMR.genotypes <- case_when(salmonella$AMR %in% levels_AMR ~ salmonell
 
 
 
-salmonella <- salmonella %>% select(-c(year,  Computed.types))
+salmonella <- salmonella %>% select(-c(Computed.types))
 
-salmonella[] <- lapply(salmonella, function(x){return(as.factor(x))})
+salmonella_train <- salmonella %>% filter(year != 2022 & year !=  2019)
+salmonella_test <- salmonella  %>%  filter(year == 2022 | year ==  2019 )
+table(salmonella_test$outbreak)
 
-salmonella_coef <- lasso(salmonella, 10)
+salmonella_train <- salmonella_train %>% select(-c(year, Min.same))
+salmonella_test <- salmonella_test %>% select(-c(year, Min.same))
+
+
+salmonella_train[] <- lapply(salmonella_train, function(x){return(as.factor(x))})
+salmonella_test[] <- lapply(salmonella_test, function(x){return(as.factor(x))})
+
+
+salmonella_coef <- lasso(salmonella_train, 12)
 salmonella_coef <- as.data.frame(as.matrix(salmonella_coef))
 sal_coef <- as.vector(salmonella_coef$s1)
 salmonella_coefs  <- round(salmonella_coef$s1/median(sal_coef[sal_coef != 0]))
 salmonella_coef$s1 <- salmonella_coefs
 
 
-variables3 <- model.matrix(outbreak~., salmonella)
-salmonella$score <- variables3 %*% salmonella_coefs
+salmonella_test$SNP.cluster <- factor(salmonella_test$SNP.cluster, 
+                                       levels = c("Other", 
+                                                  "PDS000004723.723",
+                                                  "PDS000029659.612",
+                                                  "PDS000030237.975",
+                                                  "PDS000032668.817",
+                                                  "PDS000083226.277",
+                                                  "PDS000089910.245",
+                                                  "PDS000120941.3"))
+salmonella_test$SNP.cluster <- relevel(salmonella_test$SNP.cluster, "Other")
+salmonella_test$AMR.genotypes <- factor(salmonella_test$AMR.genotypes, 
+                                        levels = c("aph(3'')-Ib=COMPLETE,aph(6)-Id=COMPLETE,blaTEM-1=COMPLETE,mdsA=COMPLETE,mdsB=COMPLETE,sul2=COMPLETE,tet(B)=COMPLETE", 
+                                                   "blaTEM-116=COMPLETE,mdsA=COMPLETE,mdsB=COMPLETE", 
+                                                   "fosA7=COMPLETE,mdsA=COMPLETE,mdsB=COMPLETE", 
+                                                   "gyrA_D87N=POINT,mdsA=COMPLETE,mdsB=COMPLETE", 
+                                                   "mdsA=COMPLETE,mdsB=COMPLETE", 
+                                                   "Other"))
+salmonella_test$AMR.genotypes <- relevel(salmonella_test$AMR.genotypes, "aph(3'')-Ib=COMPLETE,aph(6)-Id=COMPLETE,blaTEM-1=COMPLETE,mdsA=COMPLETE,mdsB=COMPLETE,sul2=COMPLETE,tet(B)=COMPLETE")
 
-mod_salmonella <- glm(outbreak ~ score, data=salmonella, family = quasibinomial())
+
+dim(model.matrix(outbreak~., salmonella_test))
+dim(model.matrix(outbreak~., salmonella_train))
+
+variables3 <- model.matrix(outbreak~., salmonella_test)
+
+
+# We need to add some levels to the factor
+#  Serovar same 
+#  Isolation.type =  same
+#
+
+
+
+salmonella_test$score <- variables3 %*% salmonella_coefs
+
+mod_salmonella <- glm(outbreak ~ score, data=salmonella_test, family = quasibinomial())
 
 threshhold <- .5  # For confusion matrices  
-salmonella$predicted <- predict(mod_salmonella, type = "response") 
+salmonella_test$predicted <- predict(mod_salmonella, type = "response") 
 
-risk_perfomance_salmonella <- roc(outbreak ~ predicted, data=salmonella)
+risk_perfomance_salmonella <- roc(outbreak ~ predicted, data=salmonella_test)
 auc(risk_perfomance_salmonella)
 BrierScore(mod_salmonella)
 
@@ -179,6 +221,29 @@ ggroc(risk_perfomance_salmonella) +
   theme_minimal() + 
   geom_abline(intercept = 1, slope = 1,
               color = "darkgrey", linetype = "dashed")
+confusionMatrix(as.factor(ifelse(salmonella_test$predicted > threshhold, 
+                                 1,0)), salmonella_test$outbreak)
+
+
+
+# Training 
+variables4 <- model.matrix(outbreak~., salmonella_train)
+salmonella_train$score <- variables4 %*% salmonella_coefs
+
+mod_salmonellat <- glm(outbreak ~ score, data=salmonella_train, family = quasibinomial())
+
+threshhold <- .5  # For confusion matrices  
+salmonella_train$predicted <- predict(mod_salmonellat, type = "response") 
+
+risk_perfomance_salmonella <- roc(outbreak ~ predicted, data=salmonella_train)
+auc(risk_perfomance_salmonella)
+BrierScore(mod_salmonella)
+
+ggroc(risk_perfomance_salmonella) +
+  theme_minimal() + 
+  geom_abline(intercept = 1, slope = 1,
+              color = "darkgrey", linetype = "dashed")
+
 
 
 
