@@ -44,13 +44,15 @@ salmonella <- read.csv("final_salmonella.csv")
 #~~~~~~~~~~~~#
 
 # Restrict to complete cases
-ecoli <- ecoli %>% filter(!is.na(month) & !is.na(year) & !is.na(Min.same)  & !is.na(Strain)) 
+ecoli <- ecoli %>% filter(!is.na(month) & !is.na(year) & !is.na(Min.same)  & !is.na(Strain), 
+                          !is.na(SNP.cluster)) 
 
 
 campylobacter <- campylobacter %>% filter(!is.na(month) & !is.na(year) & 
                                           !is.na(Min.same)  & 
                                           !is.na(SNP.cluster) & !is.na(Isolation.type)  
-                                          & !is.na(Assembly)& !is.na(AMR.genotypes))  %>% 
+                                          & !is.na(Assembly)& !is.na(AMR.genotypes) 
+                                          )  %>% 
                                    select(-c(Min.diff))
 
 
@@ -63,7 +65,7 @@ campylobacter <- campylobacter %>% filter(!is.na(month) & !is.na(year) &
 salmonella <- salmonella %>% filter(!is.na(month) & !is.na(year) & 
                                       !is.na(Min.same)  & !is.na(Serovar) &  
                                       !is.na(Isolation.type)  & !is.na(AMR.genotypes) & 
-                                      !is.na(Computed.types)) %>% 
+                                      !is.na(Computed.types) & !is.na(SNP.cluster)) %>% 
                                 select(-c(Min.diff))
 
 ## Add outbreak ## 
@@ -72,15 +74,69 @@ ecoli <-  add_outbreak(ecoli)
 campylobacter <- add_outbreak(campylobacter)
 salmonella <- add_outbreak(salmonella)
 
+
+## Reclassify the ##
+
+# SNP Cluster 
+SNP_df <- as.data.frame(table(as.factor(ecoli$SNP.cluster)))
+snp_included <- SNP_df %>% filter(Freq > 100)
+levels_snp <- as.vector(snp_included$Var1)
+ecoli$SNP.cluster <- case_when(ecoli$SNP.cluster %in% levels_snp ~ ecoli$SNP.cluster, 
+                               is.na(ecoli$SNP.cluster) ~ ecoli$SNP.cluster,
+                               !(ecoli$SNP.cluster %in% levels_snp) ~ "Other")
+
+SNP_levels_df <- as.data.frame(table(as.factor(campylobacter$SNP.cluster)))
+SNP_included <-  SNP_levels_df %>% filter(Freq > 250)
+levels_SNP <- as.vector(SNP_included$Var1) 
+campylobacter$SNP.cluster <- case_when(campylobacter$SNP.cluster %in% levels_SNP ~ campylobacter$SNP.cluster, 
+                                       is.na(campylobacter$SNP.cluster) ~ campylobacter$SNP.cluster,
+                                       !(campylobacter$SNP.cluster %in% levels_SNP) ~ "Other")
+
+SNP_levels_df <- as.data.frame(table(as.factor(salmonella$SNP.cluster)))
+SNP_included <- SNP_levels_df  %>% filter(Freq > 1000) # Remove
+levels_SNP <- as.vector(SNP_included$Var1) 
+salmonella$SNP.cluster <- case_when(salmonella$SNP.cluster %in% levels_SNP ~ salmonella$SNP.cluster, 
+                                    is.na(salmonella$SNP.cluster) ~ salmonella$SNP.cluster,
+                                    !(salmonella$SNP.cluster %in% levels_SNP) ~ "Other")
+
+# AMR
+AMR_df <- as.data.frame(table(as.factor(ecoli$AMR.genotypes)))
+AMR_included <- AMR_df %>% filter(Freq > 300)
+levels_AMR <- as.vector(AMR_included$Var1)
+ecoli$AMR.genotypes <- case_when(ecoli$AMR.genotypes %in% levels_AMR ~ ecoli$AMR.genotypes, 
+                                 is.na(ecoli$AMR.genotypes) ~ ecoli$AMR.genotypes,
+                                 !(ecoli$AMR.genotypes %in% levels_AMR) ~ "Other")
+
+AMR_levels_df <- as.data.frame(table(as.factor(campylobacter$AMR.genotypes)))
+AMR_levels_df  %>% filter(Freq > 1000) # Keep it this way 
+AMR_included <-  AMR_levels_df %>% filter(Freq > 1000)
+levels_AMR <- as.vector(AMR_included$Var1) 
+campylobacter$AMR.genotypes <- case_when(campylobacter$AMR.genotypes %in% levels_AMR ~ campylobacter$AMR.genotypes, 
+                                         is.na(campylobacter$AMR.genotypes) ~ campylobacter$AMR.genotypes,
+                                         !(campylobacter$AMR.genotypes %in% levels_AMR) ~ "Other")
+
+AMR_levels_df <- as.data.frame(table(as.factor(salmonella$AMR.genotypes)))
+AMR_included <- AMR_levels_df  %>% filter(Freq > 1000) # Remove
+levels_AMR <- as.vector(AMR_included$Var1) 
+salmonella$AMR.genotypes <- case_when(salmonella$AMR %in% levels_AMR ~ salmonella$AMR, 
+                                      is.na(salmonella$AMR) ~ salmonella$AMR,
+                                      !(salmonella$AMR %in% levels_AMR) ~ "Other")
+
+
+
+
+
 ## Delete the variables that are used to determine outbreak ## 
 
-ecoli <- ecoli %>% select(-c(year, Location, Min.same, day, year, 
-                             month_year, region))
+ecoli <- ecoli %>% select(-c(year, Location, Min.same, day, 
+                             month_year, month))
 campylobacter <- campylobacter %>% select(-c(year, Location, Min.same, 
-                                             month_year, region, Assembly))
+                                             month_year, Assembly, month 
+                                             ))
 
 salmonella <- salmonella %>% select(-c(year, Location, Min.same, 
-                                             month_year, region))
+                                             month_year, month 
+                                      ))
 
 
 #~~~~~~~~~~~~~~~~~~~~#
