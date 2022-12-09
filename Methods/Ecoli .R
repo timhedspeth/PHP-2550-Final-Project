@@ -237,6 +237,9 @@ plot(tree_salmonella,
      sub = "Figure 2. Intial tree model, prior to pruning")  
 text(tree_salmonella) 
 
+prp(tree_salmonella)
+
+
 plotcp(tree_salmonella, sub = "Figure 3. How x error changes based on complexity") 
 printcp(tree_salmonella) 
 
@@ -405,6 +408,8 @@ plot(tree_ecoli,
      main = "Intial tree model",  
      sub = "Figure 2. Intial tree model, prior to pruning")  
 text(tree_ecoli) 
+prp(tree_ecoli)
+
 
 plotcp(tree_ecoli, sub = "Figure 3. How x error changes based on complexity") 
 printcp(tree_ecoli) 
@@ -459,7 +464,7 @@ ggroc(ecoli_test_acc) + ggtitle('E. Coli Classification Tree ROC Curve') +
 
 
 
-## Plot the actual ROC Curve we will use ## 
+#### Plot the actual ROC Curve we will use #### 
 
 
 ggroc(list(Ecoli_risk = risk_perfomance_ecoli, 
