@@ -202,9 +202,10 @@ salmonella_AUC = round(auc(salmonella_acc), 2)
 # Brier Score
 salmonella_Brscr = round(sum((predict_salmonella_tree[,2] - (as.numeric(salmonella_train$outbreak) - 1))^2)/length(salmonella_train$outbreak),2)
 
-ggroc(salmonella_acc) + ggtitle('E. Coli Classification Tree ROC Curve') + 
-  annotate("text", x = .91, y = .95, label = paste0('AUC = ', salmonella_AUC), color = 'red') +
-  annotate("text", x = .85, y = .9, label = paste0('Brier Score = ', salmonella_Brscr), color = 'red')
+ggroc(salmonella_acc, size=0.8) + ggtitle('E. Coli Classification Tree ROC Curve') + 
+  annotate("text", x = .91, y = .95, label = paste0('AUC = ', salmonella_AUC), color = '#A03E3F') +
+  annotate("text", x = .85, y = .9, label = paste0('Brier Score = ', salmonella_Brscr), color = '#5566AB')+
+  theme_minimal()
 
 
 # Predict on Test Set
@@ -225,7 +226,8 @@ salmonella_test_AUC = round(auc(salmonella_test_acc), 2)
 # Brier Score
 salmonella_test_Brscr = round(sum((predict_test_tree[,2] - (as.numeric(salmonella_test$outbreak) - 1))^2)/length(salmonella_test$outbreak),2)
 
-ggroc(salmonella_test_acc) + ggtitle('Salmonella Classification Tree ROC Curve') + 
-  annotate("text", x = .91, y = .95, label = paste0('AUC = ', salmonella_test_AUC), color = 'red') +
-  annotate("text", x = .85, y = .9, label = paste0('Brier Score = ', salmonella_test_Brscr), color = 'red')
+ggroc(salmonella_test_acc, size=0.8) + ggtitle('Salmonella Classification Tree ROC Curve') + 
+  annotate("text", x = .91, y = .95, label = paste0('AUC = ', salmonella_test_AUC), color = '#A03E3F') +
+  annotate("text", x = .85, y = .9, label = paste0('Brier Score = ', salmonella_test_Brscr), color = '#5566AB')+
+  theme_minimal()
 
