@@ -200,7 +200,8 @@ ecoli_Brscr = round(sum((predict_ecoli_tree[,2] - (as.numeric(ecoli_train$outbre
 
 ggroc(ecoli_acc, size=0.8) + ggtitle('E. Coli Classification Tree ROC Curve') + 
   annotate("text", x = .91, y = .95, label = paste0('AUC = ', ecoli_AUC), color = '#A03E3F') +
-  annotate("text", x = .85, y = .9, label = paste0('Brier Score = ', ecoli_Brscr), color = '#5566AB')
+  annotate("text", x = .85, y = .9, label = paste0('Brier Score = ', ecoli_Brscr), color = '#5566AB')+
+  theme_minimal()
 
 
 # Predict on Test Set
@@ -223,5 +224,6 @@ ecoli_test_Brscr = round(sum((predict_test_tree[,2] - (as.numeric(ecoli_test$out
 
 ggroc(ecoli_test_acc, size=0.8) + ggtitle('E. Coli Classification Tree ROC Curve') + 
   annotate("text", x = .91, y = .95, label = paste0('AUC = ', ecoli_test_AUC), color = '#A03E3F') +
-  annotate("text", x = .85, y = .9, label = paste0('Brier Score = ', ecoli_test_Brscr), color = '#5566AB')
+  annotate("text", x = .85, y = .9, label = paste0('Brier Score = ', ecoli_test_Brscr), color = '#5566AB')+
+  theme_minimal()
 
