@@ -1,0 +1,79 @@
+---
+title: "Missing data; PHP 2550 Final"
+author: "Timothy Hedspeth"
+output: pdf_document
+urlcolor: blue  
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+This Rmarkdown file will be used to account for and explore the missing data in the 3 pathogens that are of interest. These results will determine which variables will be utilized in the analysis. Select variable descriptions will be discussed as we consider the types of missingness that is likely occuring in the data, all variable descriptions come from the [NCBI pathogen dectection help page](https://www.ncbi.nlm.nih.gov/pathogens/pathogens_help/#isolates-browser-data-fields-list)$^1$.   
+
+```{r, message=FALSE}
+
+
+## Packages ## 
+library(tidyverse)
+library(kableExtra)
+library(anytime)
+library(lubridate)
+
+
+## Data sets ##
+setwd("~/Desktop/Semester_3/Practical/Final") 
+ecoli <- read.csv("final_ecoli_date.csv")
+campylobacter  <- read.csv("final_campylobacter_date.csv")
+salmonella <- read.csv("final_salmonella_date.csv")
+
+
+# Replace Missing strings with NA 
+salmonella[salmonella == ""] <- NA 
+ecoli[ecoli == ""] <- NA
+campylobacter[campylobacter == ""] <- NA 
+
+
+## Missingness by column ## 
+
+# Salmonella
+na_by_cols_sal <- as.data.frame(apply(salmonella,2, is.na))
+sum_na_by_col_sal <- apply(na_by_cols_sal,2,sum)/nrow(na_by_cols_sal)
+sum_na_by_col_sal <- as.data.frame(round(sum_na_by_col_sal,2))
+
+# E. Coli 
+na_by_cols_ecoli <- as.data.frame(apply(ecoli,2, is.na))
+sum_na_by_col_ecoli <- apply(na_by_cols_ecoli,2,sum)/nrow(na_by_cols_ecoli)
+sum_na_by_col_ecoli <- as.data.frame(round(sum_na_by_col_ecoli,2))
+
+# Camplyobaceter 
+na_by_cols_camp <- as.data.frame(apply(campylobacter,2, is.na))
+sum_na_by_col_camp <- apply(na_by_cols_camp,2,sum)/nrow(na_by_cols_camp)
+sum_na_by_col_camp <- as.data.frame(round(sum_na_by_col_camp,2))
+
+# Get the data together 
+Missing_by_col <- cbind(sum_na_by_col_sal, sum_na_by_col_ecoli, sum_na_by_col_camp)
+names(Missing_by_col) <- c("x", "y", "z") # Create a dummy variable for filtering 
+Missing_by_col <- Missing_by_col %>% filter(x != 0 & 
+                                              y != 0 & 
+                                              z != 0   ) # Filter out all variables with no missing data 
+names(Missing_by_col) <- c("Salmonella", "E. Coli", "Campylobacter")
+
+# Print the data frame 
+Missing_by_col  %>% 
+  kbl(caption = "Percent missing for each illness dataset", booktabs=T, escape=F, align = "c") %>%
+  kable_styling(full_width = FALSE, latex_options = c('hold_position'))
+
+```
+
+
+Starting from the variable that is most missing (100\% across all 3 data sets), we note that **Source.type** is the isolate source type, which could be food or animal etc., it is denoted that this could be missing, as observed in this data [1]. We also note that the **Outbreak** variable is 100\% missing across all of the data sets, which is a reporter submitted metric, which designates if the case was part of an outbreak (more cases in a given area or with a certain group than expected), which is filled in *if the submitter chooses* to report [1]. Next we note that **Serovar** has a high degree of mmissigness for E. Coli and Camplylobacter, though a low level of missingess (77\%) for Salmonella, this field is a combination of sub-species, serotype, or serovar *if the submitter chooses* [1]. The **Host.disease**, which is above 90\% missing for all data sets describes any disease in the host (we are not sure if this disease is derived from the pathogen as it is not specified), and is recorded *if the submitter chooses*. The **Lat.Lon** variable is missing in almost all cases for Sallmonella and Camplyobacter data, with less missing for salmonella, this variable is recorded *if the submitter chooses* [1]. We have more than half of the observations observed for all data sets regarding **SNP.custer** which groups closely related isolates [1]. The **Min.same** and **Min.diff** variables give the SNP distance from one isolate to another of the same or different isolate type, though the **Min.diff** has a higher percent of missingness [1]. **Assembly** has a low degree of missingness and relates to the genome sequence from the database [1]. The **day** and **month** were derived from the **Collection.date** which is the date the author submits [1].
+
+
+With an idea of what the variables that we have are, we can see that most of the data that is missing is missing when a reporter is not required to put in the data, or if they can put in the data in their own format. This implies that across our data sets that this missingness is MNAR. 
+
+
+
+**Reference**
+
+[1] U.S. National Library of Medicine. (n.d.). NCBI - Pathogen Detection - NCBI. National Center for Biotechnology Information. Retrieved December 11, 2022, from https://www.ncbi.nlm.nih.gov/pathogens/pathogens_help/#isolates-browser-data-fields-list 
