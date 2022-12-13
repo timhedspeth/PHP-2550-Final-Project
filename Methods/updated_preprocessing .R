@@ -9,7 +9,11 @@
 
 library(tidyverse)
 library(kableExtra)
-
+library(anytime)
+library(lubridate)
+library(rlang)
+source("compress_levels.R")
+source("functions_outbreaks_and_lasso.R")
 # Data sets 
 setwd("~/Desktop/Semester_3/Practical/Final") 
 ecoli <- read.csv("final_ecoli_date.csv")
@@ -17,9 +21,14 @@ campylobacter  <- read.csv("final_campylobacter_date.csv")
 salmonella <- read.csv("final_salmonella_date.csv")
 
 
+
+
 #~~~~~~~~~~~~~~~~~~~~~~#
 ## Dropping variables ## 
 #~~~~~~~~~~~~~~~~~~~~~~#
+
+# We want to drop variables that have a very high degree of 
+# missingness in all 
 
 # Replace Missing strings with NA 
 salmonella[salmonella == ""] <- NA 
@@ -54,7 +63,7 @@ names(Missing_by_col) <- c("Salmonella", "E. Coli", "Campylobacter")
 
 # Print the data frame 
 Missing_by_col  %>% 
-  kbl(caption = "Percent missing for each illness dataset", booktabs=T,    escape=F, align = "c") %>%
+  kbl(caption = "Percent missing for each illness dataset", booktabs=T, escape=F, align = "c") %>%
   kable_styling(full_width = FALSE, latex_options = c('hold_position'))
 
 
@@ -65,9 +74,9 @@ Missing_by_col  %>%
  #  Source type: all missing! 
  #  Outbreak: This is all missing! 
  
-#ecoli <- ecoli %>% select(-c(Host.disease, Lat.Lon, Source.type, Outbreak))
-#campylobacter <- campylobacter %>% select(-c(Host.disease, Lat.Lon, Source.type, Outbreak))
-#salmonella <- salmonella %>% select(-c(Host.disease, Lat.Lon, Source.type, Outbreak))
+ecoli <- ecoli %>% dplyr::select(-c(Host.disease, Lat.Lon, Source.type, Outbreak))
+campylobacter <- campylobacter %>% dplyr::select(-c(Host.disease, Lat.Lon, Source.type, Outbreak))
+salmonella <- salmonella %>% dplyr::select(-c(Host.disease, Lat.Lon, Source.type, Outbreak))
 
 
 #~~~~~~~~~~~#
@@ -160,9 +169,14 @@ campylobacter <- campylobacter %>% mutate(region = case_when(Location %in% c("ME
 # Latitude and longitude won't be helpful for analysis 
 # So this will be dropped from all  
 
-ecoli <- ecoli %>% select(-c(X.Organism.group, Create.date, Collection.date, Isolation.source, Lat.Lon))
-campylobacter <- campylobacter %>% select(-c(X.Organism.group, Create.date, Collection.date, Isolation.source, Lat.Lon))
-salmonella <- salmonella %>% select(-c(X.Organism.group, Create.date, Collection.date, Isolation.source, Lat.Lon))
+
+
+ecoli <- ecoli %>% dplyr::select(-c(X.Organism.group, Create.date, Collection.date, 
+                             Isolation.source))
+campylobacter <- campylobacter %>% dplyr::select(-c(X.Organism.group, Create.date,
+                                             Collection.date, Isolation.source))
+salmonella <- salmonella %>% dplyr::select(-c(X.Organism.group, Create.date, 
+                                       Collection.date, Isolation.source))
 
 
 
@@ -179,51 +193,49 @@ apply(ecoli, 2, function(x){return(sum(is.na(x))/length(x))})
 # outbreak = 99% missing 
 # Computed types = 100% missing 
 
-ecoli <- ecoli %>% select(-c(Serovar, Host.disease, Isolation.type, Source.type,
-                             Min.diff, Outbreak, Computed.types))
+ecoli <- ecoli %>% dplyr::select(-c(Serovar,Min.diff, Computed.types))
 
 apply(ecoli, 2, function(x){return(sum(is.na(x))/length(x))})
 
-# Strains 
-strain_levels_df <- as.data.frame(table(as.factor(ecoli$Strain)))
-strain_included <-  strain_levels_df %>% filter(Freq > 15)
-levels_strain <- as.vector(strain_included$Var1) 
-ecoli$Strain <- case_when(ecoli$Strain %in% levels_strain ~ ecoli$Strain, 
-                          is.na(ecoli$Strain) ~ ecoli$Strain,
-                          !(ecoli$Strain %in% levels_strain) ~ "Other")
+
+
+# We now want to drop variables that do not have enough 
+# unique levels to reclassify and reclassify the levels of 
+# those that do have enough info so that the analysis is not 
+# overwhelmed 
+
+
+## E. coli ## 
+
+# Strain 
+
 ecoli$Strain[ecoli$Strain == "E. coli"] <- "Ecoli"
+ecoli$Strain <- as.vector(compress_levels_factors(ecoli, 'Strain'))
+
+# AMR genotype
+ecoli$AMR.genotypes <- compress_levels_factors(ecoli, 'AMR.genotypes') # Enough granularity 
 
 # Isolate Identifiers 
-identifiers_levels_df <- as.data.frame(table(as.factor(ecoli$Isolate.identifiers)))
-#identifiers_levels_df %>% filter(Freq == 2)
+compress_levels_factors(ecoli, 'Isolate.identifiers') # Not enough granularity
 
-# There are only a few that have 2 observations, none more than that, we drop it 
 
 # Isolate 
-isolate_levels_df <- as.data.frame(table(as.factor(ecoli$Isolate)))
-#isolate_levels_df %>% filter(Freq > 1)
-
-# No levels are unique, delete 
+compress_levels_factors(ecoli, 'Isolate') # Not enough granularity
 
 
-
-# Biosample 
-sample_df <- as.data.frame(table(as.factor(ecoli$BioSample)))
-#sample_df %>%  filter(Freq > 2)
-
-# Bio sample only has 26 with Freq = 2, we will delete it 
-
-assembly_df <- as.data.frame(table(as.factor(ecoli$Assembly)))
-#assembly_df %>% filter(Freq == 1)
-
-#  Assembly is unique to each, delete 
+# Bio sample 
+compress_levels_factors(ecoli, 'BioSample') # Not enough granularity
 
 
+# Assembly 
+compress_levels_factors(ecoli, 'Assembly') # Not enough granularity
 
-ecoli <- ecoli %>% select(-c(Isolate.identifiers, Isolate, BioSample, Assembly))
+
+# Remove these variables 
+ecoli <- ecoli %>% dplyr::select(-c(Isolate.identifiers, Isolate, BioSample, Assembly))
 
 
-## campylobacter ##
+## Campylobacter ##
 
 apply(campylobacter, 2, function(x){return(sum(is.na(x))/length(x))})
 
@@ -235,34 +247,30 @@ apply(campylobacter, 2, function(x){return(sum(is.na(x))/length(x))})
 # Computed.types = 100% missing
 # day = 98%  missing 
 
-campylobacter <- campylobacter %>% select(-c(Serovar,Host.disease,Source.type,
-                                            Outbreak, Computed.types))
+campylobacter <- campylobacter %>% dplyr::select(-c(Serovar, Computed.types))
 
 
 # Strain 
-strain_levels_df <- as.data.frame(table(as.factor(campylobacter$Strain)))
-# strain_levels_df %>% filter(Freq > 1) # 4 strains greater than 1, only  
+compress_levels_factors(campylobacter, 'Strain') # Not enough granularity  
 
+# Isolate identifiers 
+compress_levels_factors(campylobacter, 'Isolate.identifiers') # Not enough granularity  
 
-isolateids_levels_df <- as.data.frame(table(as.factor(campylobacter$Isolate.identifiers)))
-#isolateids_levels_df  %>% filter(Freq > 1) # Not enough levels to be considered 
+# Isolate 
+compress_levels_factors(campylobacter, 'Isolate') # Not enough granularity  
 
-isolate_levels_df <- as.data.frame(table(as.factor(campylobacter$Isolate)))
-#isolate_levels_df  %>% filter(Freq > 1) # Not enough levels to be considered 
-
+# Isolation
 isolation_levels_df <- as.data.frame(table(as.factor(campylobacter$Isolation.type)))
-#isolation_levels_df  %>% filter(Freq > 1) # Keep it this way 
+#isolation_levels_df  %>% filter(Freq > 1) # Keep it this way only 2 levels 
 
+#  Biosample
+compress_levels_factors(campylobacter, 'BioSample') # Not enough granularity  
 
+# AMR.genotypes
+campylobacter$AMR.genotypes <- compress_levels_factors(campylobacter, 'AMR.genotypes')  
 
-BioSample_levels_df <- as.data.frame(table(as.factor(campylobacter$BioSample)))
-#BioSample_levels_df  %>% filter(Freq > 1) # Keep it this way 
-
-
-
-
-
-campylobacter <- campylobacter %>% select(-c(Strain, Isolate.identifiers, Isolate, BioSample,day))
+# Remove the variables that don't have enough data 
+campylobacter <- campylobacter %>% dplyr::select(-c(Strain, Isolate.identifiers, Isolate, BioSample,day))
 
 
 
@@ -276,53 +284,40 @@ apply(salmonella, 2, function(x){return(sum(is.na(x))/length(x))})
 # Outbreak: 99%
 # day: 85% 
 
-salmonella <- salmonella %>% select(-c(Host.disease, Source.type, Outbreak, day))
+salmonella <- salmonella %>% dplyr::select(-c(day))
 
-strain_levels_df <- as.data.frame(table(as.factor(salmonella$Strain)))
-#strain_levels_df  %>% filter(Freq > 1) # Remove 
+# Strain 
+compress_levels_factors(salmonella, 'Strain') # Delete 
 
-isolateid_levels_df <- as.data.frame(table(as.factor(salmonella$Isolate.identifiers)))
-#isolateid_levels_df  %>% filter(Freq > 1) # Remove
+# Isolate.identifiers
+compress_levels_factors(salmonella, 'Isolate.identifiers') # Delete 
 
-serovar_levels_df <- as.data.frame(table(as.factor(salmonella$Serovar)))
-serovar_included <-  serovar_levels_df %>% filter(Freq > 1000)
-levels_serovar <- as.vector(serovar_included$Var1) 
-salmonella$Serovar <- case_when(salmonella$Serovar %in% levels_serovar ~ salmonella$Serovar, 
-                                         is.na(salmonella$Serovar) ~ salmonella$Serovar,
-                                         !(salmonella$Serovar %in% levels_serovar) ~ "Other")
+# Serovar 
+salmonella$Serovar <- compress_levels_factors(salmonella, 'Serovar') 
 
-isolate_levels_df <- as.data.frame(table(as.factor(salmonella$Isolate)))
-#isolate_levels_df  %>% filter(Freq > 1) # Remove
+#  Isolates  
+compress_levels_factors(salmonella, 'Isolate') # Delete 
 
+# Isolation type 
 isolationtype_levels_df <- as.data.frame(table(as.factor(salmonella$Isolation.type)))
 #isolationtype_levels_df  %>% filter(Freq > 1) # Keep
 
+# BioSample
+compress_levels_factors(salmonella, 'BioSample') # Delete 
+
+# Assembly 
+compress_levels_factors(salmonella, 'Assembly') # Delete 
+
+# Computed Types 
+salmonella$Computed.types <- compress_levels_factors(salmonella, 'Computed.types') # Delete 
+
+# AMR genotypes 
+salmonella$AMR.genotypes <- compress_levels_factors(salmonella, 'AMR.genotypes') # Delete 
 
 
-
-biosamp_levels_df <- as.data.frame(table(as.factor(salmonella$BioSample)))
-#biosamp_levels_df  %>% filter(Freq > 1) # Keep
-
-
-assembly_levels_df <- as.data.frame(table(as.factor(salmonella$Assembly)))
-#assembly_levels_df  %>% filter(Freq > 1) # Keep
-
-
-
-compute_levels_df <- as.data.frame(table(as.factor(salmonella$Computed.types)))
-compute_included <- compute_levels_df  %>% filter(Freq > 2000) # Keep
-levels_compute <- as.vector(compute_included$Var1) 
-salmonella$Computed.types <- case_when(salmonella$Computed.types %in% levels_compute ~ salmonella$AMR, 
-                            is.na(salmonella$Computed.types) ~ salmonella$Computed.types,
-                            !(salmonella$Computed.types %in% levels_compute) ~ "Other")
-
-
-
-
-salmonella <- salmonella %>% select(-c(Strain, Isolate.identifiers, Isolate,
+# Remove some variables 
+salmonella <- salmonella %>% dplyr::select(-c(Strain, Isolate.identifiers, Isolate,
                                        BioSample, Assembly))
-
-
 
 
 
