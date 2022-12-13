@@ -5,7 +5,7 @@ sal_usa <-  read.csv("~/Brown University/PHP_2550/Data/updated_salmonella_US.csv
 dim(sal_usa) #297222     21
 length(unique(sal_usa$Isolation.source)) #3779
 sal_usa$Isolation.source = tolower(sal_usa$Isolation.source)
-sal_usa$Isolation.source.category <- sal_usa$Isolation.source
+sal_usa$Isolation.source.category <- sal_usa$Isolation.source 
 
 sal_usa$Isolation.source.category[sal_usa$Isolation.source.category%like% "milk" == TRUE] <- "Dairy"
 sal_usa$Isolation.source.category[sal_usa$Isolation.source.category%like% "cream" == TRUE] <- "Dairy"
