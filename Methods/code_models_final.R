@@ -1,14 +1,8 @@
----
-title: "Models for discussion in report"
-author: "Timothy Hedspeth"
-output: pdf_document
----
+## File with just code for models 
+## There is an rmarkdown file that also has this code with more 
+## explanation and division of results 
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
 
-```{r}
 
 # This Rmarkdown will be the primary file in terms of modeling with for our
 # project, this file contains the model fitting for our 4 models of interest 
@@ -44,27 +38,18 @@ ecoli <- read.csv("final_ecoli.csv")
 source("functions_outbreaks_and_lasso.R")
 source("compress_levels.R")
 
-```
 
 
-# Section 1; Salmonella 
-
-We decided to first examine the bacteria Salmonella. Recall that our interest lays in predicting if a case is part of an outbreak, in the case we define an outbreak to be **8 or more cases** from the same SNP.cluster in a given month and year.
-We first remove all NA values, as we discuss in our EDA that the degree of missingness does  not allow for us to impute the data and trust the results. After defining an outbreak we compress the levels of the SNP.cluster to be the top 7 most observed across our time frame, and create our test train splits. In other versions of this work we included interaction terms though the results were found to not be as interpretable as our additive models, an important aspect as we do hope that our models could be used as tools for individuals in the public health sphere that do not have extensive statistical training. All interpretation of these models/metrics will be in our final report which we will make avilable in our repository. 
-
-```{r}
-
-
-#~~~~~~~~~~~~~~~~~~#
-## Clean the data ## 
-#~~~~~~~~~~~~~~~~~~#
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+## Clean the data, Salmonella ## 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 # Complete case analysis  
 salmonella <- salmonella %>% filter(!is.na(month) & !is.na(year) & 
                                       !is.na(Min.same)  & !is.na(Serovar) &  
                                       !is.na(Isolation.type)  & !is.na(AMR.genotypes) & 
                                       !is.na(Computed.types) & !is.na(SNP.cluster)) %>% 
-                              dplyr::select(-c(Min.diff, Location))
+  dplyr::select(-c(Min.diff, Location))
 
 # We will add an outbreak to the model 
 # 8 cases = outbreak
@@ -77,7 +62,7 @@ salmonella$SNP.cluster <- compress_levels_factors(salmonella, 'SNP.cluster')
 
 ## Create a test and train split
 salmonella_train <- salmonella %>% filter(year != 2021 & year !=  2019 & 
-                                          year != 2020 & year !=  2022)
+                                            year != 2020 & year !=  2022)
 salmonella_test <- salmonella  %>%  filter(year == 2021 | year ==  2019 )
 # table(salmonella_test$outbreak)
 #table(salmonella_train$outbreak)
@@ -93,12 +78,6 @@ salmonella_train[] <- lapply(salmonella_train, function(x){return(as.factor(x))}
 salmonella_test[] <- lapply(salmonella_test, function(x){return(as.factor(x))})
 
 
-```
-
-
-We will first fit our Lasso Regularized Logistic Regression as we include many factor variables that all have 8 or more levels to predict if a case is part of an outbreak using biological, spatial and time of the year. Lasso aided in our model selection procedure as coefficients are snapped to 0 when they are weakly associated with the outcome. These coefficients were divided by the median non-zero coefficients and rounded to get the corresponding risk score coefficients. 
-
-```{r}
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~##
 #### Salmonella, Risk Score ####
@@ -148,25 +127,14 @@ salmonella_test$AMR.genotypes <- relevel(salmonella_test$AMR.genotypes, "aadA1=C
 ## Create and display a table of Non-Zero coefficients
 
 sal_coefs_table <- salmonella_coef %>% 
-                   filter(s1 != 0) %>% 
-                   dplyr::rename(Score =  s1)
+  filter(s1 != 0) %>% 
+  dplyr::rename(Score =  s1)
 
 sal_coefs_table %>%  kbl(caption = "Score coefficents for Salmonella",
                          booktabs=T, escape=T, align = "c") %>%
-                     kable_styling(full_width = FALSE, latex_options = c('hold_position'))
+  kable_styling(full_width = FALSE, latex_options = c('hold_position'))
 
 
-
-
-
-```
-
-
-## Tree
-
-Code for fitting the tree model:
-
-```{r}
 
 ##~~~~~~~~~~~~~~~~~~~~~##
 #### Salmonella Tree #### 
@@ -204,14 +172,7 @@ plotcp(tree_salmonella)
 # we will not further prune it 
 
 
-```
 
-
-##  Diagnostics 
-
-We will begin with diagnostics regarding the Risk score models: 
-
-```{r}
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 ## Diagnostics; salmonella  ##
@@ -238,11 +199,11 @@ salmonella_test$score <- as.numeric(salmonella_test[,10])
 salmonella_test$outbreak_1 <- case_when(salmonella_test$outbreak == "0" ~ 0, 
                                         salmonella_test$outbreak == "1" ~ 1)
 salmonella_test  %>% group_by(score) %>% 
-                     dplyr::summarize(pct = 100*round(sum(outbreak_1)/n(),4)) %>% 
-                     dplyr::rename("Percent outbreaks" = pct) %>% 
-                     kbl(caption = "Percent of cases at each score that belong to an outbreak",
-                         booktabs=T, escape=T, align = "c") %>%
-                     kable_styling(full_width = FALSE, latex_options = c('hold_position'))
+  dplyr::summarize(pct = 100*round(sum(outbreak_1)/n(),4)) %>% 
+  dplyr::rename("Percent outbreaks" = pct) %>% 
+  kbl(caption = "Percent of cases at each score that belong to an outbreak",
+      booktabs=T, escape=T, align = "c") %>%
+  kable_styling(full_width = FALSE, latex_options = c('hold_position'))
 
 
 
@@ -254,11 +215,11 @@ salmonella_train$outbreak_1 <- case_when(salmonella_train$outbreak == "0" ~ 0,
                                          salmonella_train$outbreak == "1" ~ 1)
 
 salmonella_train %>% group_by(score) %>% 
-                     dplyr::summarize(pct = 100*round(sum(outbreak_1)/n(),4)) %>% 
-                     dplyr::rename("Percent outbreaks" = pct) %>% 
-                     kbl(caption = "Percent of cases at each score that belong to an outbreak",
-                         booktabs=T, escape=T, align = "c") %>%
-                     kable_styling(full_width = FALSE, latex_options = c('hold_position'))
+  dplyr::summarize(pct = 100*round(sum(outbreak_1)/n(),4)) %>% 
+  dplyr::rename("Percent outbreaks" = pct) %>% 
+  kbl(caption = "Percent of cases at each score that belong to an outbreak",
+      booktabs=T, escape=T, align = "c") %>%
+  kable_styling(full_width = FALSE, latex_options = c('hold_position'))
 
 # We want to look at how the models perform on Test and train data  (mainly 
 # for testing) 
@@ -269,9 +230,9 @@ salmonella_train %>% group_by(score) %>%
 salmonella_train <- salmonella_train[,-c(10,12)]
 mod_sal_train <- glm(outbreak ~  score, data = salmonella_train, 
                      family =quasibinomial()) 
-  
+
 salmonella_train$predicted <- predict(mod_sal_train, type ="response")
-  
+
 threshhold <- .5
 
 # ROC 
@@ -322,14 +283,11 @@ metrics[4,2] <- .99
 metrics[5,2] <- 0
 
 
-```
 
-
-We will now move to evaluating the tree based model: 
-
-```{r}
-
+#~~~~~~~~~~#
 ### Tree ###
+#~~~~~~~~~~#
+
 
 # Predicted on training data 
 preds = predict(tree_salmonella, salmonella_train, type = "class")
@@ -390,18 +348,6 @@ metrics[3,3] <- round(sum(diag(conf_mat_sal))/sum(conf_mat_sal),2)
 metrics[4,3] <- round(sensitivity(pred_test, salmonella_test$outbreak),2)
 metrics[5,3] <- round(specificity(pred_test, salmonella_test$outbreak),2)
 
-
-
-```
-
-
-
-
-# E. coli 
-
-For E. coli we define an outbreak to be 10 cases.  We clean the data below: 
-
-```{r}
 ##~~~~~~~~~~~~~~~~~~~~~~~~~##
 #### E. Coli Risk Scores ####
 ##~~~~~~~~~~~~~~~~~~~~~~~~~##
@@ -416,7 +362,7 @@ ecoli <- ecoli %>% filter(!is.na(month) & !is.na(year) &
                             !is.na(AMR.genotypes) & !is.na(Location)& 
                             !is.na(Isolation.type) & !is.na(region) & 
                             !is.na(Isolation.source.category)) %>%
-                    dplyr::select(-c(day, Min.same, Location))
+  dplyr::select(-c(day, Min.same, Location))
 
 
 
@@ -430,7 +376,7 @@ ecoli$SNP.cluster <- compress_levels_factors(ecoli, 'SNP.cluster')
 ## Get test and train splits ##
 ecoli_train <- ecoli %>% filter(year != 2021 & year !=  2019 )
 ecoli_test <- ecoli  %>%  filter(year == 2021 | year ==  2019 |
-                                 year == 2020 | year ==  2022)
+                                   year == 2020 | year ==  2022)
 #table(ecoli_train$outbreak)
 Percent_outbreak_test_ecoli <- 175/(175+1811)
 Percent_outbreak_train_ecoli <- 842/(842+4710)
@@ -443,13 +389,6 @@ ecoli_test <- ecoli_test %>% dplyr::select(-c(year))
 ecoli_train[] <- lapply(ecoli_train, function(x){return(as.factor(x))})
 ecoli_test[] <- lapply(ecoli_test, function(x){return(as.factor(x))})
 
-```
-
-
-Fit the model:
-
-
-```{r}
 
 # Lasso 
 ecoli_coef <- lasso(ecoli_train, 12)
@@ -479,27 +418,12 @@ dim(model.matrix(outbreak~., ecoli_train))
 
 # Coefficents
 eco_coefs_table <- ecoli_coef %>% 
-                   filter(s1 != 0) %>% 
-                   dplyr::rename(Score =  s1)
+  filter(s1 != 0) %>% 
+  dplyr::rename(Score =  s1)
 
 eco_coefs_table %>%  kbl(caption = "Score coefficents",booktabs=T, escape=T, align = "c") %>%
-                     kable_styling(full_width = FALSE, latex_options = c('hold_position'))
+  kable_styling(full_width = FALSE, latex_options = c('hold_position'))
 
-
-
-
-```
-
-
-
-
-
-
-## Tree 
-
-Fit the tree model: 
-
-```{r}
 
 # We need to weight the tree (its done automatically in lasso)
 prop_zero <- 1/(sum(ecoli_train$outbreak == 0)/nrow(ecoli_train))
@@ -510,9 +434,9 @@ eco_weights <- ifelse(ecoli_train$outbreak == 0, prop_zero, prop_one)
 
 # Fit the tree 
 tree_ecoli <- rpart(outbreak ~ ., data = ecoli_train, 
-                         method = "class", weights = eco_weights, 
-                         control=rpart.control(minsplit = 20, 
-                                               minbucket = 30)) 
+                    method = "class", weights = eco_weights, 
+                    control=rpart.control(minsplit = 20, 
+                                          minbucket = 30)) 
 
 # Plot the tree 
 prp(tree_ecoli, 
@@ -530,15 +454,10 @@ plotcp(tree_ecoli)
 # The tree already is meeting the standards of minimizing complexity 
 # we will not further prune it 
 
-```
+#~~~~~~~~~~~~~~~#
+## Diagnostics ##
+#~~~~~~~~~~~~~~~#
 
-
-
-## Measures 
-
-
-For risk score:
-```{r}
 
 # Get the scores for test set 
 mat_ecoli_test <- model.matrix(outbreak~., ecoli_test)
@@ -561,11 +480,11 @@ ecoli_test$score <- as.numeric(ecoli_test[,9])
 ecoli_test$outbreak_1 <- case_when(ecoli_test$outbreak == "0" ~ 0, 
                                    ecoli_test$outbreak == "1" ~ 1)
 ecoli_test %>% group_by(score) %>% 
-                     dplyr::summarize(pct = 100*round(sum(outbreak_1)/n(),4)) %>% 
-                     dplyr::rename("Percent outbreaks" = pct) %>% 
-                     kbl(caption = "Percent of cases at each score that belong to an outbreak",
-                         booktabs=T, escape=T, align = "c") %>%
-                     kable_styling(full_width = FALSE, latex_options = c('hold_position'))
+  dplyr::summarize(pct = 100*round(sum(outbreak_1)/n(),4)) %>% 
+  dplyr::rename("Percent outbreaks" = pct) %>% 
+  kbl(caption = "Percent of cases at each score that belong to an outbreak",
+      booktabs=T, escape=T, align = "c") %>%
+  kable_styling(full_width = FALSE, latex_options = c('hold_position'))
 
 ## Train 
 mat_ecoli_train <- model.matrix(outbreak~., ecoli_train)
@@ -575,23 +494,23 @@ ecoli_train$outbreak_1 <- case_when(ecoli_train$outbreak == "0" ~ 0,
                                     ecoli_train$outbreak == "1" ~ 1)
 
 ecoli_train  %>% group_by(score) %>% 
-                     dplyr::summarize(pct = 100*round(sum(outbreak_1)/n(),4)) %>% 
-                     dplyr::rename("Percent outbreaks" = pct) %>% 
-                     kbl(caption = "Percent of cases at each score that belong to an outbreak",
-                         booktabs=T, escape=T, align = "c") %>%
-                     kable_styling(full_width = FALSE, latex_options = c('hold_position'))
+  dplyr::summarize(pct = 100*round(sum(outbreak_1)/n(),4)) %>% 
+  dplyr::rename("Percent outbreaks" = pct) %>% 
+  kbl(caption = "Percent of cases at each score that belong to an outbreak",
+      booktabs=T, escape=T, align = "c") %>%
+  kable_styling(full_width = FALSE, latex_options = c('hold_position'))
 
 # Get metrics for training data 
 ecoli_train <- ecoli_train[,-c(9,11)]
 mod_eco_train <- glm(outbreak ~  score, data = ecoli_train, 
                      family =quasibinomial()) 
-  
+
 ecoli_train$predicted <- predict(mod_eco_train, type ="response")
-  
+
 
 # ROC 
 risk_perfomance_ecoli_train <- roc(outbreak ~ predicted, 
-                                        data=ecoli_train)
+                                   data=ecoli_train)
 # Get some Coefficents 
 confusionMatrix(as.factor(ifelse(ecoli_train$predicted > threshhold, 
                                  1,0)), ecoli_train$outbreak)
@@ -609,13 +528,8 @@ metrics[1,4] <- round(auc(risk_perfomance_ecoli),2)
 metrics[2,4] <- round(BrierScore(mod_ecoli),2)
 metrics[3,4] <- .91
 metrics[4,4] <- 1
-metrics[5,4] <- 0 
+metrics[5,4] <- 0
 
-```
-
-For tree model: 
-
-```{r}
 
 ## We now want to see how the tree performs ##
 
@@ -686,16 +600,10 @@ metrics[3,5] <- round(sum(diag(conf_mat_eco))/sum(conf_mat_eco),2)
 metrics[4,5]  <- round(sensitivity(pred_test, ecoli_test$outbreak),2)
 metrics[5,5] <- round(specificity(pred_test, ecoli_test$outbreak),2)
 
+#~~~~~~~~~~~~~~~~~~~~~~#
+## Summary of Metrics ## 
+#~~~~~~~~~~~~~~~~~~~~~~#
 
-
-```
-
-
-
-# Summary of metrics for all models 
-
-
-```{r}
 
 ## Testing data ##  
 
@@ -705,35 +613,28 @@ names(metrics) <- c("", "Risk score; Salmonella", "Tree; Salmonella",
 
 # Print the table for the report 
 metrics %>% kbl(caption = "Metrics for models on testing data",
-                         booktabs=T, escape=T, align = "c") %>%
-                     kable_styling(full_width = FALSE, latex_options = c('hold_position'))
+                booktabs=T, escape=T, align = "c") %>%
+  kable_styling(full_width = FALSE, latex_options = c('hold_position'))
 
 ## Training data ##  
 names(metrics_train) <- c("", "Risk score; Salmonella", "Tree; Salmonella", 
-                    "Risk score; E. Coli", "Tree; E. coli")
+                          "Risk score; E. Coli", "Tree; E. coli")
 
 # Print the table for the report 
 metrics_train %>% kbl(caption = "Metrics for models on training data",
-                         booktabs=T, escape=T, align = "c") %>%
-                     kable_styling(full_width = FALSE, latex_options = c('hold_position'))
+                      booktabs=T, escape=T, align = "c") %>%
+  kable_styling(full_width = FALSE, latex_options = c('hold_position'))
 
 
-
-
-```
-
-
-
-
-# Appendix 
-
-This appendix contains ROC curves for the different models that were fit:
-
-```{r}
 
 #~~~~~~~~~~~~~~#
+## ROC curves ## 
+#~~~~~~~~~~~~~~#
+
+
+
 ## Salmonella ##
-#~~~~~~~~~~~~~~#
+
 
 # Salmonella Training ROC, Risk score model
 ggroc(risk_perfomance_salmonella_train) + ggtitle('Salmonella Risk score ROC Curve, train') + 
@@ -760,9 +661,10 @@ ggroc(salmonella_test_acc) + ggtitle('Salmonella Classification Tree ROC Curve, 
   annotate("text", x = .91, y = .95, label = paste0('AUC = ', salmonella_test_AUC), color = 'red') +
   annotate("text", x = .85, y = .9, label = paste0('Brier Score = ', salmonella_test_Brscr), color = 'red')
 
-#~~~~~~~~~~~#
+
+
 ## E. Coli ## 
-#~~~~~~~~~~~#
+
 
 # E. coli, Risk score, training
 ggroc(risk_perfomance_ecoli_train) +
@@ -790,11 +692,4 @@ ggroc(ecoli_acc) + ggtitle('E. coli Classification Tree ROC Curve, train') +
 ggroc(ecoli_test_acc) + ggtitle('E. Coli Classification Tree ROC Curve, test') + 
   annotate("text", x = .91, y = .95, label = paste0('AUC = ', ecoli_test_AUC), color = 'red') +
   annotate("text", x = .85, y = .9, label = paste0('Brier Score = ', ecoli_test_Brscr), color = 'red')
-
-
-```
-
-
-
-
 
