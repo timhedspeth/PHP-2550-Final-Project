@@ -2,7 +2,12 @@
 title: "Models for discussion in report"
 author: "Timothy Hedspeth"
 output: pdf_document
+header-includes:
+- \usepackage{caption}
 ---
+
+\captionsetup[table]{labelformat=empty}
+\captionsetup[figure]{labelformat=empty}
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -151,7 +156,7 @@ sal_coefs_table <- salmonella_coef %>%
                    filter(s1 != 0) %>% 
                    dplyr::rename(Score =  s1)
 
-sal_coefs_table %>%  kbl(caption = "Score coefficents for Salmonella",
+sal_coefs_table %>%  kbl(caption = "Table 3: Score coefficents for Salmonella Risk model",
                          booktabs=T, escape=T, align = "c") %>%
                      kable_styling(full_width = FALSE, latex_options = c('hold_position'))
 
@@ -166,7 +171,7 @@ sal_coefs_table %>%  kbl(caption = "Score coefficents for Salmonella",
 
 Code for fitting the tree model:
 
-```{r}
+```{r, fig.cap= "Figure 4: Classification Tree for Salmonella"}
 
 ##~~~~~~~~~~~~~~~~~~~~~##
 #### Salmonella Tree #### 
@@ -240,7 +245,7 @@ salmonella_test$outbreak_1 <- case_when(salmonella_test$outbreak == "0" ~ 0,
 salmonella_test  %>% group_by(score) %>% 
                      dplyr::summarize(pct = 100*round(sum(outbreak_1)/n(),4)) %>% 
                      dplyr::rename("Percent outbreaks" = pct) %>% 
-                     kbl(caption = "Percent of cases at each score that belong to an outbreak",
+                     kbl(caption = "Table 6: Salmoella test set",
                          booktabs=T, escape=T, align = "c") %>%
                      kable_styling(full_width = FALSE, latex_options = c('hold_position'))
 
@@ -256,7 +261,7 @@ salmonella_train$outbreak_1 <- case_when(salmonella_train$outbreak == "0" ~ 0,
 salmonella_train %>% group_by(score) %>% 
                      dplyr::summarize(pct = 100*round(sum(outbreak_1)/n(),4)) %>% 
                      dplyr::rename("Percent outbreaks" = pct) %>% 
-                     kbl(caption = "Percent of cases at each score that belong to an outbreak",
+                     kbl(caption = "Table 7: Salmonella training data",
                          booktabs=T, escape=T, align = "c") %>%
                      kable_styling(full_width = FALSE, latex_options = c('hold_position'))
 
@@ -329,7 +334,10 @@ We will now move to evaluating the tree based model:
 
 ```{r}
 
+#~~~~~~~~~~#
 ### Tree ###
+#~~~~~~~~~~#
+
 
 # Predicted on training data 
 preds = predict(tree_salmonella, salmonella_train, type = "class")
@@ -461,7 +469,7 @@ ecoli_coef$s1 <- ecoli_coefs
 # Need  to check strain, SNP cluster, 
 
 
-# Make sure all the factors are interpe 
+# Make sure all the factors are interpetable 
 
 #levels(ecoli_test$month_source) == levels(ecoli_train$month_source)
 strain_levels_train <- as.list(levels(ecoli_train$Strain))
@@ -482,7 +490,7 @@ eco_coefs_table <- ecoli_coef %>%
                    filter(s1 != 0) %>% 
                    dplyr::rename(Score =  s1)
 
-eco_coefs_table %>%  kbl(caption = "Score coefficents",booktabs=T, escape=T, align = "c") %>%
+eco_coefs_table %>%  kbl(caption = "Table 4: Score coefficents for E. coli Risk model",booktabs=T, escape=T, align = "c") %>%
                      kable_styling(full_width = FALSE, latex_options = c('hold_position'))
 
 
@@ -499,7 +507,7 @@ eco_coefs_table %>%  kbl(caption = "Score coefficents",booktabs=T, escape=T, ali
 
 Fit the tree model: 
 
-```{r}
+```{r, fig.cap= "Figure 5: Classification Tree for E. Coli" }
 
 # We need to weight the tree (its done automatically in lasso)
 prop_zero <- 1/(sum(ecoli_train$outbreak == 0)/nrow(ecoli_train))
@@ -516,7 +524,9 @@ tree_ecoli <- rpart(outbreak ~ ., data = ecoli_train,
 
 # Plot the tree 
 prp(tree_ecoli, 
-    main = "Classification Tree, E. Coli")
+     main = "Classification Tree, E. Coli")
+
+
 
 # Tree with all splits labeled 
 rpart.plot(tree_ecoli, 
@@ -563,7 +573,7 @@ ecoli_test$outbreak_1 <- case_when(ecoli_test$outbreak == "0" ~ 0,
 ecoli_test %>% group_by(score) %>% 
                      dplyr::summarize(pct = 100*round(sum(outbreak_1)/n(),4)) %>% 
                      dplyr::rename("Percent outbreaks" = pct) %>% 
-                     kbl(caption = "Percent of cases at each score that belong to an outbreak",
+                     kbl(caption = "Table 8: E. coli test set",
                          booktabs=T, escape=T, align = "c") %>%
                      kable_styling(full_width = FALSE, latex_options = c('hold_position'))
 
@@ -577,7 +587,7 @@ ecoli_train$outbreak_1 <- case_when(ecoli_train$outbreak == "0" ~ 0,
 ecoli_train  %>% group_by(score) %>% 
                      dplyr::summarize(pct = 100*round(sum(outbreak_1)/n(),4)) %>% 
                      dplyr::rename("Percent outbreaks" = pct) %>% 
-                     kbl(caption = "Percent of cases at each score that belong to an outbreak",
+                     kbl(caption = "Table 9: E. coli training data",
                          booktabs=T, escape=T, align = "c") %>%
                      kable_styling(full_width = FALSE, latex_options = c('hold_position'))
 
@@ -704,7 +714,7 @@ names(metrics) <- c("", "Risk score; Salmonella", "Tree; Salmonella",
                     "Risk score; E. Coli", "Tree; E. coli")
 
 # Print the table for the report 
-metrics %>% kbl(caption = "Metrics for models on testing data",
+metrics %>% kbl(caption = "Table 5: Metrics for models on testing data",
                          booktabs=T, escape=T, align = "c") %>%
                      kable_styling(full_width = FALSE, latex_options = c('hold_position'))
 
